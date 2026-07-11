@@ -5,7 +5,7 @@ import logging
 from playwright.sync_api import Page
 
 from automation.core.elements import Elements
-
+from automation.core.page import BasePage
 
 from .constants import (
     COOKIE_REJECT_LINK_TEXT,
@@ -18,15 +18,12 @@ from .constants import (
 logger = logging.getLogger(__name__)
 
 
-class DinantiaHomePage:
+class DinantiaHomePage(BasePage):
     """Dinantia public home page."""
-
-    def __init__(self, page: Page) -> None:
-        self.page = page
 
     def open(self) -> None:
         """Open the Dinantia public website."""
-        logger.info("Opening Dinantia home page")
+        self.logger.info("Opening Dinantia home page")
 
         self.page.goto(
             DINANTIA_HOME_URL,
@@ -34,7 +31,7 @@ class DinantiaHomePage:
             timeout=DEFAULT_TIMEOUT_MS,
         )
 
-        logger.info("Dinantia home page loaded")
+        self.logger.info("Dinantia home page loaded")
 
     def reject_cookie_notice(self) -> None:
         """Reject the cookie or privacy notice when it is visible."""
@@ -44,10 +41,10 @@ class DinantiaHomePage:
         )
 
         if reject_link.is_visible():
-            logger.info("Rejecting Dinantia notice")
+            self.logger.info("Rejecting Dinantia notice")
             reject_link.click()
         else:
-            logger.info("Dinantia notice is not visible")
+            self.logger.info("Dinantia notice is not visible")
 
     def open_login_page(self) -> Page:
         """Open the Dinantia login page in the new browser tab."""
@@ -61,7 +58,7 @@ class DinantiaHomePage:
             timeout=DEFAULT_TIMEOUT_MS,
         )
 
-        logger.info("Opening Dinantia login page")
+        self.logger.info("Opening Dinantia login page")
 
         with self.page.expect_popup(
             timeout=DEFAULT_TIMEOUT_MS,
@@ -80,7 +77,7 @@ class DinantiaHomePage:
             timeout=DEFAULT_TIMEOUT_MS,
         )
 
-        logger.info(
+        self.logger.info(
             "Dinantia login page opened: %s",
             login_page.url,
         )

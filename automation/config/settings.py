@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     download_dir: Path = Path("downloads")
 
+    dinantia_username: str | None = None
+    dinantia_password: str | None = None
+
     @property
     def browser(self) -> BrowserSettings:
         return BrowserSettings(

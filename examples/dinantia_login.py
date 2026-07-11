@@ -5,7 +5,10 @@ import logging
 from automation.config.loader import get_settings
 from automation.core.browser import BrowserManager
 from automation.core.logger import configure_logging
-from automation.portals.dinantia import DinantiaHomePage
+from automation.portals.dinantia import (
+    DinantiaHomePage,
+    DinantiaLoginPage,
+)
 
 
 def main() -> None:
@@ -13,7 +16,14 @@ def main() -> None:
     configure_logging(settings.log_level)
 
     logger = logging.getLogger(__name__)
-    logger.info("Starting Dinantia login-page test")
+
+    if not settings.dinantia_username:
+        raise RuntimeError("AUTOMATION_DINANTIA_USERNAME is not configured in .env")
+
+    if not settings.dinantia_password:
+        raise RuntimeError("AUTOMATION_DINANTIA_PASSWORD is not configured in .env")
+
+    logger.info("Starting Dinantia authentication test")
 
     with BrowserManager(
         settings.browser,
@@ -26,15 +36,21 @@ def main() -> None:
         home_page.reject_cookie_notice()
 
         login_browser_page = home_page.open_login_page()
+        login_page = DinantiaLoginPage(login_browser_page)
+
+        login_page.authenticate(
+            settings.dinantia_username,
+            settings.dinantia_password,
+        )
 
         logger.info(
-            "Login page title: %s",
-            login_browser_page.title(),
+            "Current authenticated URL: %s",
+            login_browser_page.url,
         )
 
         login_browser_page.close()
 
-    logger.info("Dinantia login-page test completed")
+    logger.info("Dinantia authentication test completed")
 
 
 if __name__ == "__main__":
