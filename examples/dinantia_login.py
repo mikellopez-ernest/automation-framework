@@ -5,7 +5,10 @@ import logging
 from automation.config.loader import get_settings
 from automation.core.browser import BrowserManager
 from automation.core.logger import configure_logging
-from automation.portals.dinantia import DinantiaTrackingPage
+from automation.portals.dinantia import (
+    DinantiaDetailPage,
+    DinantiaTrackingPage,
+)
 from automation.workflows.dinantia import open_authenticated_dinantia_page
 
 
@@ -14,7 +17,7 @@ def main() -> None:
     configure_logging(settings.log_level)
 
     logger = logging.getLogger(__name__)
-    logger.info("Starting Dinantia tracking navigation test")
+    logger.info("Starting Dinantia tracking export test")
 
     with BrowserManager(
         settings.browser,
@@ -26,20 +29,30 @@ def main() -> None:
             settings,
         )
 
-        tracking_page = DinantiaTrackingPage(authenticated_page)
+        tracking_page = DinantiaTrackingPage(
+            authenticated_page,
+        )
 
         tracking_page.open()
         tracking_page.select_school_year("2025-26")
         tracking_page.open_detail()
 
+        detail_page = DinantiaDetailPage(
+            authenticated_page,
+        )
+
+        downloaded_file = detail_page.export_report(
+            settings.download_dir,
+        )
+
         logger.info(
-            "Current tracking URL: %s",
-            authenticated_page.url,
+            "Downloaded report: %s",
+            downloaded_file.resolve(),
         )
 
         authenticated_page.close()
 
-    logger.info("Dinantia tracking navigation test completed")
+    logger.info("Dinantia tracking export test completed")
 
 
 if __name__ == "__main__":
