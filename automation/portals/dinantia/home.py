@@ -4,6 +4,9 @@ import logging
 
 from playwright.sync_api import Page
 
+from automation.core.elements import Elements
+
+
 from .constants import (
     COOKIE_REJECT_LINK_TEXT,
     DEFAULT_TIMEOUT_MS,
@@ -35,10 +38,9 @@ class DinantiaHomePage:
 
     def reject_cookie_notice(self) -> None:
         """Reject the cookie or privacy notice when it is visible."""
-        reject_link = self.page.get_by_role(
-            "link",
-            name=COOKIE_REJECT_LINK_TEXT,
-            exact=True,
+        reject_link = Elements.link(
+            self.page,
+            COOKIE_REJECT_LINK_TEXT,
         )
 
         if reject_link.is_visible():
@@ -49,10 +51,9 @@ class DinantiaHomePage:
 
     def open_login_page(self) -> Page:
         """Open the Dinantia login page in the new browser tab."""
-        sign_in_link = self.page.get_by_role(
-            "link",
-            name=SIGN_IN_LINK_TEXT,
-            exact=True,
+        sign_in_link = Elements.link(
+            self.page,
+            SIGN_IN_LINK_TEXT,
         )
 
         sign_in_link.wait_for(
