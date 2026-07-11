@@ -5,10 +5,8 @@ from pathlib import Path
 
 from automation.config.settings import Settings
 from automation.core.browser import BrowserManager
-from automation.portals.dinantia import (
-    DinantiaDetailPage,
-    DinantiaTrackingPage,
-)
+from automation.portals.dinantia.detail import DinantiaDetailPage
+from automation.portals.dinantia.tracking import DinantiaTrackingPage
 
 from .authentication import open_authenticated_dinantia_page
 
@@ -21,7 +19,6 @@ def export_tracking_report(
     school_year: str,
 ) -> Path:
     """Export a Dinantia tracking report for the selected school year."""
-
     logger.info(
         "Starting Dinantia tracking export workflow for school year %s",
         school_year,

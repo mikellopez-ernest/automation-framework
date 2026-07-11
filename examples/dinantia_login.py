@@ -5,7 +5,7 @@ import logging
 from automation.config.loader import get_settings
 from automation.core.browser import BrowserManager
 from automation.core.logger import configure_logging
-from automation.workflows.dinantia import export_tracking_report
+from automation.portals.dinantia import DinantiaPortal
 
 
 def main() -> None:
@@ -20,9 +20,12 @@ def main() -> None:
         settings.download_dir,
         storage_state_path=settings.dinantia_storage_state_path,
     ) as browser:
-        downloaded_file = export_tracking_report(
+        portal = DinantiaPortal(
             browser,
             settings,
+        )
+
+        downloaded_file = portal.export_tracking_report(
             "2025-26",
         )
 
