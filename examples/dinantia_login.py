@@ -29,6 +29,7 @@ def main() -> None:
         tracking_page = DinantiaTrackingPage(authenticated_page)
 
         tracking_page.open()
+        tracking_page.select_school_year("2025-26")
 
         logger.info(
             "Current tracking URL: %s",
