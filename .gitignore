@@ -1,10 +1,24 @@
-# Python-generated files
-__pycache__/
-*.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
-
 # Virtual environments
-.venv
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environment
+.env
+
+# macOS
+.DS_Store
+
+# Playwright
+.playwright/
+playwright-report/
+test-results/
+
+# Downloads
+downloads/

@@ -26,11 +26,13 @@ class Settings(BaseSettings):
     browser_headless: bool = False
     browser_timeout_ms: int = 30_000
     browser_slow_mo_ms: int = 0
+
     log_level: str = "INFO"
     download_dir: Path = Path("downloads")
 
     dinantia_username: str | None = None
     dinantia_password: str | None = None
+    dinantia_storage_state_path: Path = Path(".playwright/auth/dinantia.json")
 
     @property
     def browser(self) -> BrowserSettings:

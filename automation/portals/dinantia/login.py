@@ -1,6 +1,13 @@
 from __future__ import annotations
 
-from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+from collections.abc import Callable
+
+from playwright.sync_api import (
+    Page,
+)
+from playwright.sync_api import (
+    TimeoutError as PlaywrightTimeoutError,
+)
 
 from automation.core.elements import Elements
 from automation.core.page import BasePage
@@ -15,6 +22,14 @@ LOGIN_URL_FRAGMENT = "/login"
 
 class DinantiaLoginPage(BasePage):
     """Dinantia login page."""
+
+    def __init__(
+        self,
+        page: Page,
+        save_session: Callable[[], None] | None = None,
+    ) -> None:
+        super().__init__(page)
+        self._save_session = save_session
 
     def authenticate(
         self,
@@ -96,3 +111,7 @@ class DinantiaLoginPage(BasePage):
             "Dinantia authentication completed: %s",
             self.page.url,
         )
+
+        if self._save_session is not None:
+            self.logger.info("Persisting authenticated session")
+            self._save_session()
