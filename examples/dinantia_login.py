@@ -5,6 +5,7 @@ import logging
 from automation.config.loader import get_settings
 from automation.core.browser import BrowserManager
 from automation.core.logger import configure_logging
+from automation.models import TrackingFilters
 from automation.portals.dinantia import DinantiaPortal
 
 
@@ -14,6 +15,10 @@ def main() -> None:
 
     logger = logging.getLogger(__name__)
     logger.info("Starting Dinantia tracking export example")
+
+    filters = TrackingFilters(
+        school_year="2025-26",
+    )
 
     with BrowserManager(
         settings.browser,
@@ -26,7 +31,7 @@ def main() -> None:
         )
 
         downloaded_file = portal.export_tracking_report(
-            "2025-26",
+            filters,
         )
 
         logger.info(

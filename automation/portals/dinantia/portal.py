@@ -4,6 +4,7 @@ from pathlib import Path
 
 from automation.config.settings import Settings
 from automation.core.browser import BrowserManager
+from automation.models import TrackingFilters
 from automation.workflows.dinantia.tracking_export import (
     export_tracking_report,
 )
@@ -22,11 +23,11 @@ class DinantiaPortal:
 
     def export_tracking_report(
         self,
-        school_year: str,
+        filters: TrackingFilters,
     ) -> Path:
-        """Export the detailed tracking report for a school year."""
+        """Export a detailed tracking report."""
         return export_tracking_report(
             self._browser,
             self._settings,
-            school_year,
+            filters,
         )
