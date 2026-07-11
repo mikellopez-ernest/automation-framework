@@ -1,133 +1,236 @@
 # Automation Framework
 
-Reusable browser automation framework built with Python, Playwright and `uv`.
+**Status:** Active Development
 
-The first supported portal will be Dinantia, but the core package is intentionally portal-agnostic so it can later support Moodle, Clickedu, Google Workspace or other web applications.
+**Language:** Python 3.11+
 
-## Current milestone
+**Automation Engine:** Playwright
 
-The project currently provides:
+**Package Manager:** uv
 
-- project management with `uv`;
-- settings loaded from `.env` using Pydantic Settings;
-- centralized logging with Rich;
-- a reusable Playwright browser manager;
-- Firefox, Chromium and WebKit support;
-- a minimal Dinantia example that opens the public home page;
-- Ruff, mypy and pytest configuration.
+**Code Quality:** Ruff · MyPy · Pytest
 
-It does not yet perform login or any Dinantia-specific workflow.
+**Primary Target:** Dinantia Student Tracking
 
-## Requirements
+**API Layer:** FastAPI (planned)
 
-- Python 3.11 or newer;
-- `uv`;
-- macOS or Linux.
+---
 
-## Installation
+## Overview
+
+Automation Framework is a Python framework for building reliable browser automations on top of Playwright.
+
+The project was originally created to automate functionality that is not exposed through public APIs while maintaining a clean, reusable architecture. Although the first supported portal is **Dinantia**, the framework is designed to keep reusable infrastructure independent from portal-specific implementations.
+
+Its primary goal is to expose high-level business operations instead of browser interactions, allowing external systems such as Google Apps Script to consume browser automations through a simple API.
+
+---
+
+## Project Goals
+
+The framework has been designed around a small set of principles:
+
+* Build reliable browser automations using Playwright.
+* Isolate reusable infrastructure from portal-specific implementations.
+* Expose business-oriented APIs instead of browser operations.
+* Minimize maintenance when target applications change.
+* Support integration with external services through HTTP APIs.
+* Maintain production-quality code, tests and documentation.
+
+---
+
+## Current Status
+
+| Portal   | Feature                                |   Status   |
+| -------- | -------------------------------------- | :--------: |
+| Dinantia | Authentication with persistent session |      ✅     |
+| Dinantia | Student tracking navigation            |      ✅     |
+| Dinantia | School year selection                  |      ✅     |
+| Dinantia | Detailed tracking view                 |      ✅     |
+| Dinantia | Report export with automatic retry     |      ✅     |
+| FastAPI  | HTTP API                               | 🚧 Planned |
+
+---
+
+## Architecture Overview
+
+The project follows a layered architecture where every layer has a single responsibility.
+
+```text
+Applications
+        │
+        ▼
+DinantiaPortal
+        │
+        ▼
+Workflows
+        │
+        ▼
+Page Objects
+        │
+        ▼
+Core Infrastructure
+        │
+        ▼
+Playwright
+```
+
+Responsibilities are distributed as follows:
+
+* **Core** contains reusable infrastructure such as browser management, downloads, logging and configuration.
+* **Page Objects** encapsulate the behaviour of individual application screens.
+* **Workflows** coordinate multiple page objects to perform complete business operations.
+* **Portals** expose a simple public API while hiding implementation details.
+
+For a detailed explanation of the architecture, see **docs/architecture.md**.
+
+---
+
+## Project Structure
+
+```text
+automation/
+├── config/
+├── core/
+├── models/
+├── portals/
+├── workflows/
+├── examples/
+├── tests/
+└── docs/
+```
+
+| Directory     | Purpose                                               |
+| ------------- | ----------------------------------------------------- |
+| **config**    | Application configuration and environment settings    |
+| **core**      | Reusable infrastructure shared by every automation    |
+| **models**    | Typed domain models used by workflows and public APIs |
+| **portals**   | Portal-specific implementations                       |
+| **workflows** | Business workflows composed of multiple page objects  |
+| **examples**  | Minimal executable examples                           |
+| **tests**     | Automated test suite                                  |
+| **docs**      | Project documentation                                 |
+
+---
+
+## Quick Start
+
+### Clone the repository
 
 ```bash
-unzip automation_framework.zip
-cd automation_framework
+git clone <repository-url>
+cd automation
+```
+
+### Install dependencies
+
+```bash
 uv sync --dev
-uv run playwright install firefox chromium
 ```
 
-For Ubuntu Server, install the browser and its operating-system dependencies with:
+### Install Playwright browsers
 
 ```bash
-uv run playwright install --with-deps firefox chromium
+uv run playwright install
 ```
 
-## Configuration
-
-Create the local `.env` file:
+### Configure the environment
 
 ```bash
 cp .env.example .env
 ```
 
-Default development configuration:
+Edit the `.env` file with the appropriate credentials and configuration values.
 
-```dotenv
-AUTOMATION_BROWSER_ENGINE=firefox
-AUTOMATION_BROWSER_HEADLESS=false
-AUTOMATION_BROWSER_TIMEOUT_MS=30000
-AUTOMATION_BROWSER_SLOW_MO_MS=0
-AUTOMATION_LOG_LEVEL=INFO
-AUTOMATION_DOWNLOAD_DIR=downloads
-```
-
-For Ubuntu Server:
-
-```dotenv
-AUTOMATION_BROWSER_HEADLESS=true
-```
-
-The `.env` file is ignored by Git.
-
-## Run the first example
+### Run the example
 
 ```bash
-uv run python examples/dinantia_open_home.py
+uv run python examples/dinantia_login.py
 ```
 
-The command should open Firefox, load Dinantia and print the page title.
+---
 
-## Quality checks
+## Example
+
+The public API intentionally remains small and business-oriented.
+
+```python
+from automation.config.loader import get_settings
+from automation.core.browser import BrowserManager
+from automation.models import TrackingFilters
+from automation.portals.dinantia import DinantiaPortal
+
+settings = get_settings()
+
+filters = TrackingFilters(
+    school_year="2025-26",
+)
+
+with BrowserManager(
+    settings.browser,
+    settings.download_dir,
+    storage_state_path=settings.dinantia_storage_state_path,
+) as browser:
+
+    portal = DinantiaPortal(
+        browser,
+        settings,
+    )
+
+    report = portal.export_tracking_report(
+        filters,
+    )
+
+    print(report)
+```
+
+The example contains no Playwright selectors, browser waits or navigation logic. Those responsibilities remain entirely inside the framework.
+
+---
+
+## Development
+
+Before committing changes, run the complete quality pipeline:
 
 ```bash
+uv run ruff check . --fix
+uv run ruff format .
 uv run ruff check .
-uv run ruff format --check .
 uv run mypy automation examples
 uv run pytest
 ```
 
-To automatically format the code:
+---
 
-```bash
-uv run ruff format .
-```
+## Documentation
 
-## Project structure
+Project documentation is located in the **docs/** directory.
 
-```text
-automation_framework/
-├── automation/
-│   ├── config/
-│   │   ├── loader.py
-│   │   └── settings.py
-│   ├── core/
-│   │   ├── browser.py
-│   │   ├── exceptions.py
-│   │   └── logger.py
-│   └── portals/
-│       └── dinantia/
-│           └── constants.py
-├── examples/
-│   └── dinantia_open_home.py
-├── tests/
-│   └── test_settings.py
-├── .env.example
-├── .gitignore
-├── pyproject.toml
-└── README.md
-```
+| Document                         | Description                                     |
+| -------------------------------- | ----------------------------------------------- |
+| `documentation-style-guide.md`   | Documentation conventions and writing standards |
+| `architecture.md`                | Project architecture                            |
+| `development-guide.md`           | Development workflow                            |
+| `dinantia-tracking.md`           | Tracking automation design                      |
+| `authentication-and-sessions.md` | Session persistence                             |
+| `adding-a-new-automation.md`     | Extending the framework                         |
+| `testing-and-debugging.md`       | Debugging and troubleshooting                   |
 
-## First Git commit
+---
 
-After verifying that the example works:
+## Roadmap
 
-```bash
-git init
-git add .
-git commit -m "Create automation framework foundation"
-```
+Planned improvements include:
 
-## Next milestone
+* FastAPI service layer
+* Google Apps Script integration
+* Docker deployment
+* Additional Dinantia tracking automations
+* Richer domain models
+* Expanded automated test suite
 
-The next commit will add a Dinantia home-page object that:
+---
 
-1. rejects the cookie prompt;
-2. clicks the `Sign in` link;
-3. verifies that the login page opens in a new browser page.
+## License
+
+Private project.
