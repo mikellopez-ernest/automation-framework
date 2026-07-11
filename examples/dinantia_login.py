@@ -11,6 +11,7 @@ from automation.core.logger import configure_logging
 from automation.portals.dinantia import (
     DinantiaHomePage,
     DinantiaLoginPage,
+    DinantiaTrackingPage,
 )
 from automation.portals.dinantia.constants import (
     DEFAULT_TIMEOUT_MS,
@@ -18,7 +19,6 @@ from automation.portals.dinantia.constants import (
 )
 
 AUTHENTICATED_TRACKING_SELECTOR = 'a[href="/attitude/"][role="treeitem"]'
-
 LOGIN_PASSWORD_SELECTOR = 'input[type="password"]'
 
 
@@ -27,8 +27,7 @@ def has_valid_session(
     timeout_ms: int = DEFAULT_TIMEOUT_MS,
 ) -> bool:
     """Return whether the current browser session is authenticated."""
-
-    deadline = time.monotonic() + timeout_ms / 1000
+    deadline = time.monotonic() + timeout_ms / 1_000
 
     tracking_link = page.locator(AUTHENTICATED_TRACKING_SELECTOR).first
 
@@ -50,6 +49,7 @@ def require_credentials(
     username: str | None,
     password: str | None,
 ) -> tuple[str, str]:
+    """Return configured credentials or raise a clear error."""
     if not username:
         raise RuntimeError("AUTOMATION_DINANTIA_USERNAME is not configured.")
 
@@ -59,81 +59,89 @@ def require_credentials(
     return username, password
 
 
-def main() -> None:
-    settings = get_settings()
+def open_authenticated_page(
+    browser: BrowserManager,
+    username: str | None,
+    password: str | None,
+) -> Page:
+    """Return an authenticated Dinantia page."""
+    if browser.storage_state_loaded:
+        session_page = browser.new_page()
 
-    configure_logging(
-        settings.log_level,
+        session_page.goto(
+            DINANTIA_INBOX_URL,
+            wait_until="domcontentloaded",
+            timeout=DEFAULT_TIMEOUT_MS,
+        )
+
+        if has_valid_session(session_page):
+            logging.getLogger(__name__).info("Saved Dinantia session is valid")
+            return session_page
+
+        logging.getLogger(__name__).info("Saved Dinantia session is expired")
+        session_page.close()
+
+    resolved_username, resolved_password = require_credentials(
+        username,
+        password,
     )
 
-    logger = logging.getLogger(__name__)
+    public_page = browser.new_page()
+    home_page = DinantiaHomePage(public_page)
 
-    logger.info("Starting Dinantia authentication test")
+    home_page.open()
+    home_page.reject_cookie_notice()
+
+    login_browser_page = home_page.open_login_page()
+
+    def save_dinantia_session() -> None:
+        browser.save_storage_state()
+
+    login_page = DinantiaLoginPage(
+        login_browser_page,
+        save_session=save_dinantia_session,
+    )
+
+    login_page.authenticate(
+        resolved_username,
+        resolved_password,
+    )
+
+    public_page.close()
+
+    return login_browser_page
+
+
+def main() -> None:
+    settings = get_settings()
+    configure_logging(settings.log_level)
+
+    logger = logging.getLogger(__name__)
+    logger.info("Starting Dinantia tracking navigation test")
 
     with BrowserManager(
         settings.browser,
         settings.download_dir,
         storage_state_path=settings.dinantia_storage_state_path,
     ) as browser:
-        if browser.storage_state_loaded:
-            page = browser.new_page()
-
-            logger.info("Checking saved Dinantia session")
-
-            page.goto(
-                DINANTIA_INBOX_URL,
-                wait_until="domcontentloaded",
-                timeout=DEFAULT_TIMEOUT_MS,
-            )
-
-            if has_valid_session(page):
-                logger.info("Saved Dinantia session is valid.")
-
-                page.close()
-                return
-
-            logger.info("Saved Dinantia session is expired.")
-
-            page.close()
-
-        username, password = require_credentials(
+        authenticated_page = open_authenticated_page(
+            browser,
             settings.dinantia_username,
             settings.dinantia_password,
         )
 
-        public_page = browser.new_page()
+        tracking_page = DinantiaTrackingPage(authenticated_page)
 
-        home = DinantiaHomePage(
-            public_page,
-        )
-
-        home.open()
-        home.reject_cookie_notice()
-
-        login_browser_page = home.open_login_page()
-
-        def save_dinantia_session() -> None:
-            browser.save_storage_state()
-
-        login = DinantiaLoginPage(
-            login_browser_page,
-            save_session=save_dinantia_session,
-        )
-
-        login.authenticate(
-            username,
-            password,
-        )
+        tracking_page.open()
 
         logger.info(
-            "Authenticated URL: %s",
-            login_browser_page.url,
+            "Current tracking URL: %s",
+            authenticated_page.url,
         )
 
-        login_browser_page.close()
-        public_page.close()
+        authenticated_page.close()
 
-    logger.info("Dinantia authentication test completed")
+    logger.info("Dinantia tracking navigation test completed")
 
 
 if __name__ == "__main__":
