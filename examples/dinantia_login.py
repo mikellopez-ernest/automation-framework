@@ -30,6 +30,7 @@ def main() -> None:
 
         tracking_page.open()
         tracking_page.select_school_year("2025-26")
+        tracking_page.open_detail()
 
         logger.info(
             "Current tracking URL: %s",

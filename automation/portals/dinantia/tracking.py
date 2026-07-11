@@ -10,10 +10,12 @@ from automation.core.page import BasePage
 
 from .constants import (
     DEFAULT_TIMEOUT_MS,
+    TRACKING_DETAIL_URL_FRAGMENT,
     TRACKING_PAGE_URL_FRAGMENT,
 )
 
 TRACKING_MENU_TEXT = "Seguiment"
+DETAIL_LINK_TEXT = "Detall"
 
 DATE_RANGE_BUTTON_SELECTOR = (
     'button[aria-haspopup="listbox"]:has(svg[data-icon="calendar"])'
@@ -59,6 +61,7 @@ class DinantiaTrackingPage(BasePage):
     def select_school_year(self, school_year: str) -> None:
         """Select a school year and wait for its chart data."""
         date_range_button = self._get_date_range_button()
+
         selected_range = self._get_selected_range(
             date_range_button,
         )
@@ -84,6 +87,7 @@ class DinantiaTrackingPage(BasePage):
         )
 
         responses: list[dict[str, Any]] = []
+
         response_listener = self._create_response_listener(
             responses,
         )
@@ -109,6 +113,7 @@ class DinantiaTrackingPage(BasePage):
                 "networkidle",
                 timeout=NETWORK_TIMEOUT_MS,
             )
+
         finally:
             self.page.remove_listener(
                 "response",
@@ -127,6 +132,32 @@ class DinantiaTrackingPage(BasePage):
             "School year %s loaded successfully with %d records",
             school_year,
             final_response["record_count"],
+        )
+
+    def open_detail(self) -> None:
+        """Open the detailed tracking view."""
+        self.logger.info("Opening tracking detail page")
+
+        detail_link = Elements.link(
+            self.page,
+            DETAIL_LINK_TEXT,
+        )
+
+        detail_link.wait_for(
+            state="visible",
+            timeout=DEFAULT_TIMEOUT_MS,
+        )
+
+        detail_link.click()
+
+        self.page.wait_for_url(
+            lambda url: TRACKING_DETAIL_URL_FRAGMENT in url,
+            timeout=DEFAULT_TIMEOUT_MS,
+        )
+
+        self.logger.info(
+            "Tracking detail page opened: %s",
+            self.page.url,
         )
 
     def _get_date_range_button(self) -> Locator:
