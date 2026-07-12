@@ -27,19 +27,48 @@ packages = ["automation"]
 [tool.ruff]
 line-length = 88
 target-version = "py311"
+extend-exclude = [
+    ".playwright",
+    "downloads",
+]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP"]
+select = [
+    "B",
+    "E",
+    "F",
+    "I",
+    "UP",
+]
+ignore = []
 
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+line-ending = "auto"
+docstring-code-format = true
 
 [tool.mypy]
 python_version = "3.11"
 strict = true
 warn_unused_configs = true
+pretty = true
+show_error_codes = true
+files = [
+    "automation",
+    "examples",
+    "tests",
+]
+exclude = [
+    "^\\.playwright/",
+    "^downloads/",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+addopts = [
+    "--strict-config",
+    "--strict-markers",
+    "-ra",
+]
