@@ -7,14 +7,12 @@ from playwright.sync_api import Page
 
 from automation.config.settings import Settings
 from automation.core.browser import BrowserManager
-from automation.portals.dinantia import (
-    DinantiaHomePage,
-    DinantiaLoginPage,
-)
 from automation.portals.dinantia.constants import (
     DEFAULT_TIMEOUT_MS,
     DINANTIA_INBOX_URL,
 )
+from automation.portals.dinantia.home import DinantiaHomePage
+from automation.portals.dinantia.login import DinantiaLoginPage
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +25,8 @@ def open_authenticated_dinantia_page(
     settings: Settings,
 ) -> Page:
     """Return a Dinantia page with a valid authenticated session."""
-
     if browser.storage_state_loaded:
-        session_page = browser.new_page()
+        session_page: Page = browser.new_page()
 
         logger.info("Checking saved Dinantia session")
 
@@ -51,13 +48,13 @@ def open_authenticated_dinantia_page(
 
     username, password = _require_credentials(settings)
 
-    public_page = browser.new_page()
+    public_page: Page = browser.new_page()
     home_page = DinantiaHomePage(public_page)
 
     home_page.open()
     home_page.reject_cookie_notice()
 
-    login_browser_page = home_page.open_login_page()
+    login_browser_page: Page = home_page.open_login_page()
 
     def save_dinantia_session() -> None:
         browser.save_storage_state()
@@ -82,7 +79,6 @@ def _has_valid_session(
     timeout_ms: int = DEFAULT_TIMEOUT_MS,
 ) -> bool:
     """Return whether Dinantia displays an authenticated interface."""
-
     deadline = time.monotonic() + timeout_ms / 1_000
 
     tracking_link = page.locator(AUTHENTICATED_TRACKING_SELECTOR).first
@@ -105,7 +101,6 @@ def _require_credentials(
     settings: Settings,
 ) -> tuple[str, str]:
     """Return configured credentials or raise a clear error."""
-
     if not settings.dinantia_username:
         raise RuntimeError("AUTOMATION_DINANTIA_USERNAME is not configured in .env")
 

@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import logging
 
-from automation.config.loader import get_settings
-from automation.core.browser import BrowserManager
-from automation.core.logger import configure_logging
-from automation.portals.dinantia import DinantiaHomePage
+from automation.config import get_settings
+from automation.core import BrowserManager, configure_logging
+from automation.portals.dinantia.home import DinantiaHomePage
 
 
 def main() -> None:
