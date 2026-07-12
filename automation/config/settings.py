@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     download_dir: Path = Path("downloads")
 
+    api_token: str | None = None
+
     dinantia_username: str | None = None
     dinantia_password: str | None = None
     dinantia_storage_state_path: Path = Path(".playwright/auth/dinantia.json")
