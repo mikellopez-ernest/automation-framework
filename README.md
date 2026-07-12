@@ -6,90 +6,170 @@
 
 **Automation Engine:** Playwright
 
+**HTTP API:** FastAPI
+
 **Package Manager:** uv
 
 **Code Quality:** Ruff · MyPy · Pytest
 
-**Primary Target:** Dinantia Student Tracking
-
-**API Layer:** FastAPI (planned)
+**Primary Integration:** Dinantia
 
 ---
 
-## Overview
+# Overview
 
-Automation Framework is a Python framework for building reliable browser automations on top of Playwright.
+Automation Framework is a reusable Python framework for building reliable browser automations and exposing them through a clean HTTP API.
 
-The project was originally created to automate functionality that is not exposed through public APIs while maintaining a clean, reusable architecture. Although the first supported portal is **Dinantia**, the framework is designed to keep reusable infrastructure independent from portal-specific implementations.
+The framework is designed around business operations rather than browser interactions. Consumers never interact with Playwright directly; instead they use high-level services such as exporting a Dinantia tracking report.
 
-Its primary goal is to expose high-level business operations instead of browser interactions, allowing external systems such as Google Apps Script to consume browser automations through a simple API.
+Although the first supported platform is **Dinantia**, the architecture is intentionally provider-agnostic. Additional portals can be incorporated without changing the overall framework or API architecture.
 
----
+Typical consumers include:
 
-## Project Goals
-
-The framework has been designed around a small set of principles:
-
-* Build reliable browser automations using Playwright.
-* Isolate reusable infrastructure from portal-specific implementations.
-* Expose business-oriented APIs instead of browser operations.
-* Minimize maintenance when target applications change.
-* Support integration with external services through HTTP APIs.
-* Maintain production-quality code, tests and documentation.
+- Google Apps Script
+- Internal web applications
+- Scheduled automation services
+- Other Python applications
 
 ---
 
-## Current Status
+# Project Goals
 
-| Portal   | Feature                                |   Status   |
-| -------- | -------------------------------------- | :--------: |
-| Dinantia | Authentication with persistent session |      ✅     |
-| Dinantia | Student tracking navigation            |      ✅     |
-| Dinantia | School year selection                  |      ✅     |
-| Dinantia | Detailed tracking view                 |      ✅     |
-| Dinantia | Report export with automatic retry     |      ✅     |
-| FastAPI  | HTTP API                               | 🚧 Planned |
+The project is built around a small set of engineering principles.
+
+- Build reliable browser automations using Playwright.
+- Expose business-oriented APIs instead of browser operations.
+- Isolate reusable infrastructure from portal-specific implementations.
+- Keep every architectural layer focused on a single responsibility.
+- Maintain production-quality documentation, testing and static analysis.
+- Make new automations inexpensive to develop.
 
 ---
 
-## Architecture Overview
+# Current Status
 
-The project follows a layered architecture where every layer has a single responsibility.
+## Framework
+
+| Feature | Status |
+|----------|:------:|
+| Browser management | ✅ |
+| Download infrastructure | ✅ |
+| Configuration | ✅ |
+| Exception hierarchy | ✅ |
+| Logging | ✅ |
+| Typed domain models | ✅ |
+| Workflow layer | ✅ |
+| Portal layer | ✅ |
+
+## Dinantia
+
+| Feature | Status |
+|----------|:------:|
+| Authentication | ✅ |
+| Persistent sessions | ✅ |
+| Tracking navigation | ✅ |
+| School year selection | ✅ |
+| Detailed tracking view | ✅ |
+| Report export | ✅ |
+| Automatic download retry | ✅ |
+
+## HTTP API
+
+| Feature | Status |
+|----------|:------:|
+| FastAPI application | ✅ |
+| OpenAPI | ✅ |
+| Swagger UI | ✅ |
+| API versioning | ✅ |
+| Response schemas | ✅ |
+| Service layer | ✅ |
+| Tracking export endpoint | ✅ |
+| Bearer authentication | 🚧 |
+| Exception handlers | 🚧 |
+| Concurrency lock | 🚧 |
+
+---
+
+# Architecture
+
+The project follows a layered architecture.
+
+Each layer has a single responsibility.
 
 ```text
 Applications
+
         │
         ▼
-DinantiaPortal
+
+HTTP API
+
         │
         ▼
+
+Routers
+
+        │
+        ▼
+
+Services
+
+        │
+        ▼
+
+Portals
+
+        │
+        ▼
+
 Workflows
+
         │
         ▼
+
 Page Objects
+
         │
         ▼
+
 Core Infrastructure
+
         │
         ▼
+
 Playwright
+
+        │
+        ▼
+
+External Platform
 ```
 
-Responsibilities are distributed as follows:
+Responsibilities are intentionally isolated.
 
-* **Core** contains reusable infrastructure such as browser management, downloads, logging and configuration.
-* **Page Objects** encapsulate the behaviour of individual application screens.
-* **Workflows** coordinate multiple page objects to perform complete business operations.
-* **Portals** expose a simple public API while hiding implementation details.
+| Layer | Responsibility |
+|--------|----------------|
+| **API** | HTTP transport |
+| **Routers** | Request parsing and response generation |
+| **Services** | Application orchestration |
+| **Portals** | Public business API |
+| **Workflows** | Multi-page business operations |
+| **Page Objects** | Individual screens |
+| **Core** | Shared infrastructure |
 
-For a detailed explanation of the architecture, see **docs/architecture.md**.
+No Playwright code should exist above the Page Object layer.
+
+For additional details see:
+
+- `docs/architecture.md`
 
 ---
 
-## Project Structure
+# Project Structure
 
 ```text
 automation/
+├── api/
 ├── config/
 ├── core/
 ├── models/
@@ -100,49 +180,58 @@ automation/
 └── docs/
 ```
 
-| Directory     | Purpose                                               |
-| ------------- | ----------------------------------------------------- |
-| **config**    | Application configuration and environment settings    |
-| **core**      | Reusable infrastructure shared by every automation    |
-| **models**    | Typed domain models used by workflows and public APIs |
-| **portals**   | Portal-specific implementations                       |
-| **workflows** | Business workflows composed of multiple page objects  |
-| **examples**  | Minimal executable examples                           |
-| **tests**     | Automated test suite                                  |
-| **docs**      | Project documentation                                 |
+| Directory | Purpose |
+|-----------|---------|
+| **api** | FastAPI application |
+| **config** | Configuration and settings |
+| **core** | Shared infrastructure |
+| **models** | Typed domain models |
+| **portals** | Public automation APIs |
+| **workflows** | Business workflows |
+| **examples** | Executable examples |
+| **tests** | Test suite |
+| **docs** | Project documentation |
 
 ---
 
-## Quick Start
+# Quick Start
 
-### Clone the repository
+## Clone
 
 ```bash
 git clone <repository-url>
 cd automation
 ```
 
-### Install dependencies
+---
+
+## Install dependencies
 
 ```bash
 uv sync --dev
 ```
 
-### Install Playwright browsers
+---
+
+## Install Playwright
 
 ```bash
 uv run playwright install
 ```
 
-### Configure the environment
+---
+
+## Configure
 
 ```bash
 cp .env.example .env
 ```
 
-Edit the `.env` file with the appropriate credentials and configuration values.
+Edit the configuration values.
 
-### Run the example
+---
+
+## Run an example
 
 ```bash
 uv run python examples/dinantia_login.py
@@ -150,13 +239,31 @@ uv run python examples/dinantia_login.py
 
 ---
 
-## Example
+## Start the HTTP API
 
-The public API intentionally remains small and business-oriented.
+```bash
+uv run uvicorn automation.api.app:app --reload
+```
+
+Swagger UI:
+
+```
+http://127.0.0.1:8000/docs
+```
+
+OpenAPI:
+
+```
+http://127.0.0.1:8000/openapi.json
+```
+
+---
+
+# Python Example
 
 ```python
-from automation.config.loader import get_settings
-from automation.core.browser import BrowserManager
+from automation.config import get_settings
+from automation.core import BrowserManager
 from automation.models import TrackingFilters
 from automation.portals.dinantia import DinantiaPortal
 
@@ -181,57 +288,96 @@ with BrowserManager(
         filters,
     )
 
-    print(report)
+print(report)
 ```
 
-The example contains no Playwright selectors, browser waits or navigation logic. Those responsibilities remain entirely inside the framework.
+Consumers never interact directly with Playwright.
 
 ---
 
-## Development
+# HTTP API
 
-Before committing changes, run the complete quality pipeline:
+Current endpoints:
+
+| Method | Endpoint | Description |
+|---------|----------|-------------|
+| GET | `/` | API information |
+| GET | `/health` | Health check |
+| POST | `/api/v1/dinantia/tracking/export` | Export tracking report |
+
+Interactive documentation is automatically generated through FastAPI.
+
+---
+
+# Development
+
+Run the complete quality pipeline before committing.
 
 ```bash
 uv run ruff check . --fix
+
 uv run ruff format .
+
 uv run ruff check .
-uv run mypy automation examples
+
+uv run mypy
+
 uv run pytest
 ```
 
----
-
-## Documentation
-
-Project documentation is located in the **docs/** directory.
-
-| Document                         | Description                                     |
-| -------------------------------- | ----------------------------------------------- |
-| `documentation-style-guide.md`   | Documentation conventions and writing standards |
-| `architecture.md`                | Project architecture                            |
-| `development-guide.md`           | Development workflow                            |
-| `dinantia-tracking.md`           | Tracking automation design                      |
-| `authentication-and-sessions.md` | Session persistence                             |
-| `adding-a-new-automation.md`     | Extending the framework                         |
-| `testing-and-debugging.md`       | Debugging and troubleshooting                   |
-| `api-design.md` | HTTP API contract and design |
+The repository should always remain green.
 
 ---
 
-## Roadmap
+# Documentation
 
-Planned improvements include:
+The complete documentation is located under `docs/`.
 
-* FastAPI service layer
-* Google Apps Script integration
-* Docker deployment
-* Additional Dinantia tracking automations
-* Richer domain models
-* Expanded automated test suite
+## Getting Started
+
+| Document | Description |
+|----------|-------------|
+| `project-status.md` | Current development status |
+| `roadmap.md` | Project roadmap |
+| `architecture.md` | System architecture |
+| `development-guide.md` | Development workflow |
+
+## Framework
+
+| Document | Description |
+|----------|-------------|
+| `authentication-and-sessions.md` | Session management |
+| `adding-a-new-automation.md` | Creating new automations |
+| `dinantia-tracking.md` | Dinantia tracking implementation |
+| `testing-and-debugging.md` | Testing and troubleshooting |
+
+## API
+
+| Document | Description |
+|----------|-------------|
+| `api-design.md` | HTTP API contract |
+
+## Engineering
+
+| Document | Description |
+|----------|-------------|
+| `documentation-style-guide.md` | Documentation conventions |
+| `decisions/` | Architectural Decision Records (ADR) |
 
 ---
 
-## License
+# Contributing
+
+Development standards are defined in:
+
+```
+AGENTS.md
+```
+
+Every contributor (human or AI) should read this document before modifying the project.
+
+---
+
+# License
 
 Private project.
