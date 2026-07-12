@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 
 from automation.api.dependencies import TrackingServiceDependency
 from automation.api.schemas import ExportTrackingRequest
+from automation.api.security import ApiTokenDependency
 
 router = APIRouter(
     prefix="/dinantia",
@@ -29,14 +30,21 @@ EXCEL_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.
                 EXCEL_MEDIA_TYPE: {},
             },
         },
+        401: {
+            "description": "Invalid or missing API token.",
+        },
         422: {
             "description": "Invalid request body.",
+        },
+        503: {
+            "description": "API token is not configured.",
         },
     },
 )
 def export_tracking_report(
     request: ExportTrackingRequest,
     service: TrackingServiceDependency,
+    _: ApiTokenDependency,
 ) -> FileResponse:
     """Generate and return a Dinantia tracking report."""
     report_path = service.export_report(
