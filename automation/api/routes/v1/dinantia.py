@@ -3,7 +3,10 @@ from __future__ import annotations
 from fastapi import APIRouter
 from fastapi.responses import FileResponse
 
-from automation.api.dependencies import TrackingServiceDependency
+from automation.api.dependencies import (
+    AutomationLockDependency,
+    TrackingServiceDependency,
+)
 from automation.api.schemas import ExportTrackingRequest
 from automation.api.security import ApiTokenDependency
 
@@ -33,11 +36,14 @@ EXCEL_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.
         401: {
             "description": "Invalid or missing API token.",
         },
+        409: {
+            "description": "Another automation is already running.",
+        },
         422: {
             "description": "Invalid request body.",
         },
         503: {
-            "description": "API token is not configured.",
+            "description": "The automation service is unavailable.",
         },
     },
 )
@@ -45,6 +51,7 @@ def export_tracking_report(
     request: ExportTrackingRequest,
     service: TrackingServiceDependency,
     _: ApiTokenDependency,
+    __: AutomationLockDependency,
 ) -> FileResponse:
     """Generate and return a Dinantia tracking report."""
     report_path = service.export_report(

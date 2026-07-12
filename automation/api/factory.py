@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 
+from .errors import register_exception_handlers
 from .routes import (
     health_router,
     root_router,
@@ -13,12 +14,13 @@ from .routes.v1 import (
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
-
     app = FastAPI(
         title="Automation Framework",
         description="Reusable browser automation API.",
         version="0.1.0",
     )
+
+    register_exception_handlers(app)
 
     app.include_router(
         root_router,
