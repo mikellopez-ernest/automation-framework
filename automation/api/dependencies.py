@@ -4,6 +4,7 @@ from typing import Annotated
 
 from fastapi import Depends
 
+from automation.api.services import TrackingService
 from automation.config import Settings, get_settings
 
 
@@ -15,4 +16,19 @@ def get_app_settings() -> Settings:
 SettingsDependency = Annotated[
     Settings,
     Depends(get_app_settings),
+]
+
+
+def get_tracking_service(
+    settings: SettingsDependency,
+) -> TrackingService:
+    """Return the Dinantia tracking application service."""
+    return TrackingService(
+        settings,
+    )
+
+
+TrackingServiceDependency = Annotated[
+    TrackingService,
+    Depends(get_tracking_service),
 ]

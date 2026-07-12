@@ -18,7 +18,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "httpx",
+    "httpx2>=2.5.0",
     "mypy>=1.16.1",
     "pytest>=8.4.1",
     "ruff>=0.12.2",
