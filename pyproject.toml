@@ -9,13 +9,16 @@ description = "Reusable browser automation framework based on Playwright"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "fastapi",
     "playwright>=1.54.0",
     "pydantic-settings>=2.10.1",
     "rich>=14.0.0",
+    "uvicorn[standard]",
 ]
 
 [dependency-groups]
 dev = [
+    "httpx",
     "mypy>=1.16.1",
     "pytest>=8.4.1",
     "ruff>=0.12.2",
