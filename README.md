@@ -215,6 +215,7 @@ Project documentation is located in the **docs/** directory.
 | `authentication-and-sessions.md` | Session persistence                             |
 | `adding-a-new-automation.md`     | Extending the framework                         |
 | `testing-and-debugging.md`       | Debugging and troubleshooting                   |
+| `api-design.md` | HTTP API contract and design |
 
 ---
 
