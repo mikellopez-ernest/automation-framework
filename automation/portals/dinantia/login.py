@@ -10,6 +10,7 @@ from playwright.sync_api import (
 )
 
 from automation.core.elements import Elements
+from automation.core.exceptions import AuthenticationError
 from automation.core.page import BasePage
 
 from .constants import DEFAULT_TIMEOUT_MS
@@ -37,7 +38,6 @@ class DinantiaLoginPage(BasePage):
         password: str,
     ) -> None:
         """Authenticate a Dinantia user."""
-
         self.logger.info("Authenticating Dinantia user")
 
         self.page.wait_for_load_state(
@@ -103,7 +103,7 @@ class DinantiaLoginPage(BasePage):
                 timeout=DEFAULT_TIMEOUT_MS,
             )
         except PlaywrightTimeoutError as exc:
-            raise RuntimeError(
+            raise AuthenticationError(
                 "Dinantia authentication did not complete successfully"
             ) from exc
 

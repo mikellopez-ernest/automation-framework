@@ -6,6 +6,7 @@ from typing import Any
 from playwright.sync_api import Locator, Response
 
 from automation.core.elements import Elements
+from automation.core.exceptions import DinantiaTrackingError
 from automation.core.page import BasePage
 
 from .constants import (
@@ -281,7 +282,9 @@ class DinantiaTrackingPage(BasePage):
         responses: list[dict[str, Any]],
     ) -> None:
         if not responses:
-            raise RuntimeError("Dinantia did not return any chart data response")
+            raise DinantiaTrackingError(
+                "Dinantia did not return any chart data response"
+            )
 
         self.logger.info(
             "Chart data responses received: %d",
@@ -314,7 +317,7 @@ class DinantiaTrackingPage(BasePage):
         ]
 
         if not valid_responses:
-            raise RuntimeError("Dinantia chart data responses were not valid")
+            raise DinantiaTrackingError("Dinantia chart data responses were not valid")
 
         return max(
             valid_responses,

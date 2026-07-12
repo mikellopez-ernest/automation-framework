@@ -4,6 +4,7 @@ from pathlib import Path
 
 from automation.core.downloads import DownloadManager
 from automation.core.elements import Elements
+from automation.core.exceptions import DinantiaExportError, DownloadError
 from automation.core.page import BasePage
 
 from .constants import DEFAULT_TIMEOUT_MS
@@ -48,8 +49,8 @@ class DinantiaDetailPage(BasePage):
                 attempt_timeout_ms=DOWNLOAD_ATTEMPT_TIMEOUT_MS,
                 retry_delay_ms=DOWNLOAD_RETRY_DELAY_MS,
             )
-        except RuntimeError as exc:
-            raise RuntimeError(
+        except DownloadError as exc:
+            raise DinantiaExportError(
                 "Dinantia did not generate the tracking report "
                 f"after {MAX_EXPORT_ATTEMPTS} attempts"
             ) from exc

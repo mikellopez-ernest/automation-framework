@@ -11,6 +11,8 @@ from playwright.sync_api import (
     TimeoutError as PlaywrightTimeoutError,
 )
 
+from .exceptions import DownloadError
+
 
 class DownloadManager:
     """Reusable Playwright download infrastructure."""
@@ -26,7 +28,7 @@ class DownloadManager:
         attempt_timeout_ms: int = 30_000,
         retry_delay_ms: int = 2_000,
     ) -> Path:
-        """Trigger and save a download, retrying failed attempts."""
+        """Trigger and save a download, retrying temporary failures."""
         if max_attempts < 1:
             raise ValueError("max_attempts must be at least 1")
 
@@ -102,7 +104,7 @@ class DownloadManager:
                     retry_delay_ms,
                 )
 
-        raise RuntimeError(f"No download was received after {max_attempts} attempts")
+        raise DownloadError(f"No download was received after {max_attempts} attempts")
 
     @staticmethod
     def build_destination(

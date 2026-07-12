@@ -7,6 +7,7 @@ from playwright.sync_api import Page
 
 from automation.config.settings import Settings
 from automation.core.browser import BrowserManager
+from automation.core.exceptions import AuthenticationError
 from automation.portals.dinantia.constants import (
     DEFAULT_TIMEOUT_MS,
     DINANTIA_INBOX_URL,
@@ -102,10 +103,14 @@ def _require_credentials(
 ) -> tuple[str, str]:
     """Return configured credentials or raise a clear error."""
     if not settings.dinantia_username:
-        raise RuntimeError("AUTOMATION_DINANTIA_USERNAME is not configured in .env")
+        raise AuthenticationError(
+            "AUTOMATION_DINANTIA_USERNAME is not configured in .env"
+        )
 
     if not settings.dinantia_password:
-        raise RuntimeError("AUTOMATION_DINANTIA_PASSWORD is not configured in .env")
+        raise AuthenticationError(
+            "AUTOMATION_DINANTIA_PASSWORD is not configured in .env"
+        )
 
     return (
         settings.dinantia_username,
