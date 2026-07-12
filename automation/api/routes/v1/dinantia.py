@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import shutil
+from pathlib import Path
+
 from fastapi import APIRouter
 from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
 
 from automation.api.dependencies import (
     AutomationLockDependency,
@@ -62,4 +66,18 @@ def export_tracking_report(
         path=report_path,
         media_type=EXCEL_MEDIA_TYPE,
         filename=report_path.name,
+        background=BackgroundTask(
+            _remove_report_directory,
+            report_path,
+        ),
+    )
+
+
+def _remove_report_directory(
+    report_path: Path,
+) -> None:
+    """Remove the temporary directory containing a generated report."""
+    shutil.rmtree(
+        report_path.parent,
+        ignore_errors=True,
     )

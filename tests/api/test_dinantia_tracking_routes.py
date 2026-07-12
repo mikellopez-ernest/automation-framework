@@ -189,3 +189,43 @@ def test_export_tracking_report_rejects_empty_school_year() -> None:
         app.dependency_overrides.clear()
 
     assert response.status_code == 422
+
+
+def test_export_tracking_report_removes_temporary_directory(
+    tmp_path: Path,
+) -> None:
+    report_directory = tmp_path / "temporary-report"
+    report_directory.mkdir()
+
+    report_path = report_directory / "tracking-report.xlsx"
+    report_path.write_bytes(b"test-excel-content")
+
+    fake_service = FakeTrackingService(
+        report_path,
+    )
+
+    def override_tracking_service() -> TrackingService:
+        return cast(
+            TrackingService,
+            fake_service,
+        )
+
+    app.dependency_overrides[get_app_settings] = override_settings
+    app.dependency_overrides[get_tracking_service] = override_tracking_service
+
+    try:
+        client = TestClient(app)
+
+        response = client.post(
+            "/api/v1/dinantia/tracking/export",
+            headers=authenticated_headers(),
+            json={
+                "school_year": "2025-26",
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.content == b"test-excel-content"
+    assert not report_directory.exists()
