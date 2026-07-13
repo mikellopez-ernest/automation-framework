@@ -1,6 +1,6 @@
 # Automation Framework
 
-**Status:** Active Development
+**Status:** Production Ready
 
 **Language:** Python 3.11+
 
@@ -84,9 +84,9 @@ The project is built around a small set of engineering principles.
 | Response schemas | ✅ |
 | Service layer | ✅ |
 | Tracking export endpoint | ✅ |
-| Bearer authentication | 🚧 |
-| Exception handlers | 🚧 |
-| Concurrency lock | 🚧 |
+| Bearer authentication | ✅ |
+| Exception handlers | ✅ |
+| Concurrency lock | ✅ |
 
 ---
 
@@ -259,6 +259,32 @@ http://127.0.0.1:8000/openapi.json
 
 ---
 
+# Production Deployment
+
+The framework includes a complete production deployment based on:
+
+* Docker
+* Docker Compose
+* Caddy
+* Automatic HTTPS
+* Persistent Playwright authentication state
+
+For production environments, refer to:
+
+```
+docs/deployment.md
+```
+
+The deployment guide includes:
+
+* installation;
+* environment configuration;
+* HTTPS configuration;
+* backups;
+* disaster recovery;
+* operational procedures;
+* security considerations.
+
 # Python Example
 
 ```python
@@ -333,6 +359,17 @@ The repository should always remain green.
 
 The complete documentation is located under `docs/`.
 
+## Documentation Map
+
+| Area | Main Document |
+|------|---------------|
+| Architecture | architecture.md |
+| Development | development-guide.md |
+| Deployment | deployment.md |
+| API | api-design.md |
+| Testing | testing-and-debugging.md |
+| ADRs | decisions/ |
+
 ## Getting Started
 
 | Document | Description |
@@ -341,6 +378,7 @@ The complete documentation is located under `docs/`.
 | `roadmap.md` | Project roadmap |
 | `architecture.md` | System architecture |
 | `development-guide.md` | Development workflow |
+| `deployment.md` | Production deployment guide |
 
 ## Framework
 
