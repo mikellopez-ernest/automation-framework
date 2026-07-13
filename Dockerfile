@@ -23,8 +23,9 @@ COPY . .
 # Install the project itself
 RUN uv sync --frozen --no-dev
 
-# Run the application as a non-root user
+# Prepare persistent runtime storage and run as a non-root user
 RUN useradd --create-home automation \
+    && mkdir -p /app/.playwright/auth \
     && chown -R automation:automation /app
 
 USER automation
