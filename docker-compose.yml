@@ -1,0 +1,20 @@
+services:
+  automation:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: automation-framework:0.1.0
+    container_name: automation-framework
+    init: true
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      AUTOMATION_DINANTIA_STORAGE_STATE_PATH: /app/.playwright/auth/dinantia.json
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - automation_auth:/app/.playwright/auth
+
+volumes:
+  automation_auth:
