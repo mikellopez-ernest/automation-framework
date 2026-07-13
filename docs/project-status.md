@@ -1,65 +1,96 @@
 # Project Status
 
-> Last updated: 2026-07-12
+> Last updated: 2026-07-13
 
 ---
 
 # Project
 
-Automation Framework
+**Automation Framework**
 
-Reusable browser automation framework with a FastAPI interface.
+Reusable browser automation framework exposing business-oriented operations through a FastAPI HTTP API.
 
-Current integration:
+Current implementation:
+
 - Dinantia
 
 ---
 
 # Current Version
 
-0.1.0
+**0.1.0**
 
 ---
 
 # Overall Status
 
 | Area | Status |
-|-------|--------|
-| Architecture | ✅ Stable |
+|-------|:------:|
 | Framework | ✅ Stable |
+| Architecture | ✅ Stable |
 | Documentation | ✅ Stable |
-| FastAPI | 🟡 In progress |
-| Deployment | ⏳ Pending |
+| Dinantia Integration | ✅ Stable |
+| HTTP API | ✅ Stable |
+| Deployment | 🟡 In Progress |
 
 ---
 
-# Current Architecture
+# Architecture
 
-HTTP API
+The project follows a layered architecture.
 
-↓
+```text
+Client
+    │
+    ▼
+
+FastAPI
+
+    │
+    ▼
 
 Router
 
-↓
+    │
+    ▼
+
+Dependencies
+
+    │
+    ▼
 
 Service
 
-↓
+    │
+    ▼
 
 Portal
 
-↓
+    │
+    ▼
 
 Workflow
 
-↓
+    │
+    ▼
+
+Page Objects
+
+    │
+    ▼
+
+Core Infrastructure
+
+    │
+    ▼
 
 Playwright
 
-↓
+    │
+    ▼
 
-External platform
+External Platform
+```
 
 ---
 
@@ -69,124 +100,212 @@ Implemented:
 
 - BrowserManager
 - DownloadManager
-- Settings
-- Exception hierarchy
+- Configuration system
 - Logging
-- Page abstraction
+- Exception hierarchy
+- Typed domain models
 - Workflow layer
 - Portal layer
 
+Quality:
+
+- Ruff
+- MyPy
+- Pytest
+
+All quality checks must remain green.
+
 ---
 
-# Dinantia Status
+# Dinantia Integration
 
 Implemented:
 
 - Authentication
-- Session persistence
+- Persistent browser sessions
+- Automatic session reuse
 - Tracking navigation
 - School year selection
+- Detailed tracking view
 - Report export
-- Download retry
-- Typed models
+- Automatic download retries
 
 ---
 
-# HTTP API Status
+# HTTP API
 
 Implemented:
 
 - FastAPI
-- Swagger
 - OpenAPI
+- Swagger UI
 - API versioning
+- Dependency injection
 - Service layer
-- Response schemas
-- Tracking export endpoint
-
-Pending:
-
 - Bearer authentication
-- Exception handlers
-- Concurrency lock
-- Request logging
+- Global exception handlers
+- Serialized automation execution
+- Temporary download directories
+- Automatic cleanup after download
+
+Current endpoint:
+
+```
+POST /api/v1/dinantia/tracking/export
+```
 
 ---
 
-# Quality
+# End-to-End Validation
 
-Static analysis:
+The complete automation flow has been successfully validated.
 
-- Ruff ✅
-- mypy ✅
-- pytest ✅
+```text
+curl
+
+↓
+
+FastAPI
+
+↓
+
+Bearer Authentication
+
+↓
+
+Automation Lock
+
+↓
+
+Tracking Service
+
+↓
+
+Playwright
+
+↓
+
+Dinantia
+
+↓
+
+Excel Report
+
+↓
+
+HTTP Response
+
+↓
+
+Automatic Cleanup
+```
+
+Validation completed successfully using a real Dinantia environment.
+
+---
+
+# Production Characteristics
+
+Current behaviour:
+
+- One browser automation per process
+- Persistent authenticated session
+- Temporary download directory per request
+- Automatic cleanup after response
+- Browser started on demand
+- Browser closed after each request
+
+No permanent report files are stored.
 
 ---
 
 # Current Public API
 
-Python
+## HTTP
 
-- DinantiaPortal
-
-HTTP
-
+```
+GET  /
+GET  /health
 POST /api/v1/dinantia/tracking/export
+```
+
+## Python
+
+```
+DinantiaPortal
+```
 
 ---
 
-# Documentation
+# Documentation Status
 
-README.md
+Completed:
 
-architecture.md
+- README
+- Architecture
+- Development Guide
+- Authentication
+- Dinantia Tracking
+- API Design
+- Testing Guide
+- Documentation Style Guide
+- ADR 0001–0004
 
-development-guide.md
+Pending:
 
-api-design.md
-
-project-status.md
-
-roadmap.md
-
----
-
-# Last Completed Milestone
-
-Expose the first production-ready HTTP endpoint for Dinantia tracking export.
+- Deployment Guide
+- ADR 0005–0008
 
 ---
 
 # Current Priority
 
-Implement API authentication.
+Containerize the application for production deployment.
+
+Current objectives:
+
+- Docker image
+- Docker Compose
+- Reverse proxy
+- HTTPS
+- Deployment documentation
 
 ---
 
-# Next Milestones
+# Known Limitations
 
-1. Bearer authentication
+Current API guarantees serialized execution only within a single process.
 
-2. Exception handlers
+Production deployments should use:
 
-3. Concurrency lock
+- one Uvicorn worker
+- one browser automation process
 
-4. Google Apps Script integration
-
-5. Docker deployment
+Multiple workers are intentionally not supported in the current version.
 
 ---
 
 # Technical Debt
 
-None identified.
+No significant architectural debt has been identified.
 
-The project currently has no known architectural debt.
+Remaining work focuses on deployment and future functionality rather than framework refactoring.
 
 ---
 
-# Notes
+# Recent Milestones
 
-- Routers never interact directly with Playwright.
-- Browser lifecycle belongs to the Service layer.
-- The API currently returns the generated Excel file directly.
+Completed:
+
+- HTTP API
+- Bearer authentication
+- Global exception handling
+- Automation concurrency control
+- Request-scoped temporary downloads
+- End-to-end API validation
+
+---
+
+# Next Milestone
+
+Deploy the Automation Framework using Docker and expose it securely behind a reverse proxy.

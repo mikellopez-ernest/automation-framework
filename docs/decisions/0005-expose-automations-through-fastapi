@@ -1,0 +1,141 @@
+# ADR-0005 — Expose Automations Through FastAPI
+
+> Status: Accepted
+>
+> Date: 2026-07-13
+
+---
+
+# Context
+
+The framework originally exposed browser automations only through its Python API.
+
+As the project evolved, external systems needed to execute automations without embedding Python code or interacting directly with Playwright.
+
+Typical consumers include:
+
+- Google Apps Script
+- Internal web applications
+- Scheduled jobs
+- External services
+
+A stable HTTP interface became necessary.
+
+---
+
+# Decision
+
+Expose browser automations through a FastAPI application.
+
+The HTTP API becomes the public entry point of the framework.
+
+Clients interact exclusively through HTTP endpoints.
+
+Browser automation remains completely hidden behind the API.
+
+---
+
+# Architecture
+
+```
+HTTP Client
+
+↓
+
+FastAPI
+
+↓
+
+Router
+
+↓
+
+Service
+
+↓
+
+Portal
+
+↓
+
+Workflow
+
+↓
+
+Playwright
+```
+
+The API layer is intentionally thin.
+
+Routers contain:
+
+- request validation
+- dependency injection
+- response generation
+
+Business logic remains inside the framework.
+
+---
+
+# Consequences
+
+Positive:
+
+- Browser automation becomes language-independent.
+- Multiple clients can reuse the same implementation.
+- OpenAPI documentation is generated automatically.
+- Swagger UI is available without additional work.
+- Authentication and concurrency can be centralized.
+
+Negative:
+
+- HTTP becomes the primary integration surface.
+- Browser automation must now consider API semantics and HTTP status codes.
+
+---
+
+# Alternatives Considered
+
+## Continue exposing only a Python API
+
+Rejected.
+
+External systems such as Google Apps Script cannot easily consume Python code.
+
+---
+
+## Implement a custom HTTP server
+
+Rejected.
+
+FastAPI already provides:
+
+- dependency injection
+- request validation
+- OpenAPI
+- Swagger
+- mature ecosystem
+
+---
+
+## Build a CLI instead of an HTTP API
+
+Rejected.
+
+A CLI would still require process management and would not integrate naturally with external services.
+
+---
+
+# Rationale
+
+FastAPI provides a stable, well-documented and production-ready interface while keeping browser automation completely isolated from transport concerns.
+
+The chosen architecture preserves the existing framework design and enables future integrations without exposing Playwright directly.
+
+---
+
+# Related Documents
+
+- architecture.md
+- api-design.md
+- development-guide.md

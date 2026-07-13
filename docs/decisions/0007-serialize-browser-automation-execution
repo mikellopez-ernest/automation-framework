@@ -1,0 +1,195 @@
+# ADR-0007 — Serialize Browser Automation Execution
+
+> Status: Accepted
+>
+> Date: 2026-07-13
+
+---
+
+# Context
+
+Browser automations interact with external web applications using Playwright.
+
+The current framework reuses a persistent authenticated browser session to avoid repeated logins and improve performance.
+
+Simultaneous browser automations may interfere with each other by sharing:
+
+- browser storage state;
+- authentication cookies;
+- downloaded files;
+- external platform state.
+
+The expected workload for the first production deployment is low, typically one automation request at a time.
+
+---
+
+# Decision
+
+Serialize browser automation execution within the API process.
+
+Before any browser automation starts, the framework acquires a global automation lock.
+
+If another automation is already running:
+
+```
+409 Conflict
+```
+
+is returned immediately.
+
+The request is not queued.
+
+The browser is never started.
+
+---
+
+# Architecture
+
+```
+HTTP Request
+
+↓
+
+Bearer Authentication
+
+↓
+
+Automation Lock
+
+↓
+
+BrowserManager
+
+↓
+
+Playwright
+
+↓
+
+Dinantia
+
+↓
+
+HTTP Response
+
+↓
+
+Release Lock
+```
+
+The lock is implemented inside the API layer and remains transparent to the rest of the framework.
+
+---
+
+# Consequences
+
+Positive:
+
+- Prevents concurrent use of the same browser session.
+- Eliminates download directory collisions.
+- Simplifies browser lifecycle management.
+- Reduces operational complexity.
+- Keeps browser behaviour deterministic.
+- Avoids race conditions inside external platforms.
+
+Negative:
+
+- Only one automation may execute at a time.
+- Additional requests receive HTTP 409.
+- Throughput is intentionally limited.
+
+These limitations are acceptable for the current deployment model.
+
+---
+
+# Alternatives Considered
+
+## Multiple concurrent browsers
+
+Rejected.
+
+Although technically possible, concurrent browser sessions introduce significantly more complexity:
+
+- session isolation;
+- download isolation;
+- resource management;
+- authentication consistency.
+
+Current requirements do not justify this complexity.
+
+---
+
+## Request Queue
+
+Rejected.
+
+Queuing introduces additional infrastructure:
+
+- worker processes;
+- queue management;
+- request persistence;
+- timeout handling.
+
+The expected workload is sufficiently low that rejecting concurrent requests is preferable.
+
+---
+
+## Multiple API Workers
+
+Rejected.
+
+The current lock exists in process memory.
+
+Running multiple Uvicorn workers would allow simultaneous automations and invalidate the concurrency guarantee.
+
+Production deployments should therefore use:
+
+```
+--workers 1
+```
+
+---
+
+# Future Evolution
+
+If future demand increases significantly, execution may evolve toward:
+
+```
+HTTP Request
+
+↓
+
+Queue
+
+↓
+
+Worker Pool
+
+↓
+
+Browser Pool
+
+↓
+
+External Platform
+```
+
+Such a redesign would require a different concurrency model and should be considered a new architectural decision.
+
+---
+
+# Rationale
+
+The framework prioritizes reliability over maximum throughput.
+
+Executing a single browser automation at a time greatly simplifies the implementation while providing predictable behaviour and avoiding race conditions in external platforms.
+
+The chosen solution matches the expected production workload and preserves the existing architecture.
+
+---
+
+# Related Documents
+
+- architecture.md
+- api-design.md
+- project-status.md

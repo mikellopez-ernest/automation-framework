@@ -1,46 +1,68 @@
+# AGENTS.md
+
 # Automation Framework
 
-AI Development Guide
+Agent Instructions
+
+Last Updated: 2026-07-13
 
 ---
 
 # Purpose
 
-This document defines the engineering standards used throughout this repository.
+This document defines the engineering principles that every AI agent and human contributor must follow when modifying this repository.
 
-Every contributor (human or AI) should read this file before modifying the project.
+It is intentionally technology-agnostic.
 
-The objective is to keep the project consistent regardless of who produces the code.
+The goal is to preserve the architecture, quality and long-term maintainability of the project.
+
+Whenever this document conflicts with ad-hoc implementation shortcuts, this document takes precedence.
 
 ---
 
 # Project Philosophy
 
-The project is built as a reusable automation framework.
+Automation Framework is not a collection of Playwright scripts.
 
-It is NOT a collection of scripts.
+It is a reusable browser automation platform.
 
-Every design decision should favour:
+Browser automation is an implementation detail.
 
-- readability
-- maintainability
-- explicitness
-- testability
-- separation of concerns
+The public API of the framework consists of business operations.
 
-Small improvements are preferred over large rewrites.
+Every design decision should reinforce this separation.
 
 ---
 
-# Architecture
+# Primary Objectives
 
-The architecture is intentionally layered.
+Always prioritize, in this order:
+
+1. Correctness
+2. Maintainability
+3. Readability
+4. Simplicity
+5. Performance
+
+Never sacrifice architecture for minor performance gains.
+
+---
+
+# Core Principles
+
+## Single Responsibility
+
+Every component should have one clearly defined responsibility.
+
+If a class starts solving multiple problems, split it.
+
+---
+
+## Layer Separation
+
+Respect the architecture.
 
 ```
-HTTP API
-
-↓
-
 Router
 
 ↓
@@ -57,210 +79,303 @@ Workflow
 
 ↓
 
-Playwright
+Page Objects
 
 ↓
 
-External platform
+Core
+
+↓
+
+Playwright
 ```
 
-Responsibilities must never leak between layers.
+Dependencies always point downward.
+
+Never introduce upward dependencies.
 
 ---
 
-# Layer Responsibilities
+## Infrastructure First
 
-## Router
+Whenever a problem may appear in multiple automations, solve it in Core.
 
-Responsible only for HTTP.
+Do not duplicate infrastructure.
 
-Allowed:
+Examples:
 
-- request parsing
-- response generation
-- dependency injection
-
-Forbidden:
-
-- Playwright
-- selectors
 - browser lifecycle
-- business logic
+- downloads
+- logging
+- retry logic
+- configuration
+- exception handling
 
 ---
 
-## Service
+## Provider Isolation
 
-Responsible for application orchestration.
+Provider-specific code belongs only inside provider modules.
 
-Owns:
+The Core layer must never know anything about:
 
-- BrowserManager
-- Portal creation
-- Settings
+- Dinantia
+- Moodle
+- Untis
+- Microsoft 365
+
+or any future provider.
+
+---
+
+## Business-Oriented API
+
+The public API should expose business operations.
+
+Good:
+
+```
+export_tracking_report()
+```
+
+Bad:
+
+```
+click_export_button()
+```
+
+HTTP endpoints should represent business actions.
+
+---
+
+# Playwright
+
+Playwright is an implementation detail.
+
+Only the following layers may directly use Playwright:
+
+- Core
+- Page Objects
+
+Never expose:
+
+- Locator
+- Page
+- Browser
+- Selector
+
+outside those layers.
+
+---
+
+# Services
+
+Services own:
+
+- browser lifecycle
+- orchestration
+- temporary resources
 - application flow
 
-Must not contain Playwright selectors.
+Services do not contain selectors.
+
+Services do not implement HTTP.
 
 ---
 
-## Portal
+# Routers
 
-Represents a public automation API.
+Routers should remain extremely small.
 
-Owns:
+Responsibilities:
 
-- business operations
+- request validation
+- dependency injection
+- HTTP responses
 
-May use workflows.
+Nothing else.
 
-Must never expose Playwright internals.
-
----
-
-## Workflow
-
-Coordinates several pages.
-
-Owns navigation logic.
+Business logic belongs elsewhere.
 
 ---
 
-## Page Objects
+# Error Handling
 
-Represent a single page.
+Raise framework exceptions.
 
-Only here are Playwright locators allowed.
+Allow global exception handlers to translate them into HTTP responses.
 
----
-
-# Coding Standards
-
-Python 3.11
-
-Strict typing.
-
-mypy must remain green.
-
-ruff must remain green.
-
-pytest must remain green.
-
-No warnings should be introduced intentionally.
+Do not catch exceptions unless there is a clear recovery strategy.
 
 ---
 
-# Style
+# Temporary Files
 
-Prefer small functions.
+Generated files are request-scoped.
 
-Prefer explicit names.
+Never leave generated files permanently on disk.
 
-Avoid abbreviations.
-
-Avoid clever code.
-
-Prefer readability over conciseness.
+Automatic cleanup should remain the default behaviour.
 
 ---
 
-# Exceptions
+# Browser Sessions
 
-Never raise RuntimeError directly.
+Browser instances are ephemeral.
 
-Use framework exceptions.
+Authentication state is persistent.
 
-New exceptions should inherit from AutomationError.
-
----
-
-# Configuration
-
-Never hardcode:
-
-- credentials
-- URLs
-- tokens
-
-Everything configurable belongs in Settings.
+Do not persist browser instances.
 
 ---
 
-# Dependency Injection
+# Concurrency
 
-FastAPI dependencies belong in:
+Only one browser automation executes at a time.
 
-automation/api/dependencies.py
+Do not bypass the Automation Lock.
 
-Routers must use injected services.
-
----
-
-# Testing
-
-Every public feature should include tests.
-
-Prefer isolated tests.
-
-Mock services instead of browsers whenever possible.
+Future scalability should be achieved through a different architecture, not by weakening the existing guarantees.
 
 ---
 
 # Documentation
 
-Any significant architectural change must update:
+Documentation is part of the codebase.
 
-- project-status.md
+Any architectural change should update:
 
-and, if necessary,
+- documentation
+- ADRs
+- public API documentation
 
-- roadmap.md
+Code and documentation should evolve together.
 
-Architecture changes should also update the corresponding ADR.
+---
+
+# Testing
+
+Every feature should include appropriate tests.
+
+Prefer testing behaviour instead of implementation.
+
+API tests should replace Services using dependency overrides.
+
+Do not launch Playwright during router tests.
+
+---
+
+# Code Style
+
+Prefer:
+
+- explicit code
+- descriptive names
+- small functions
+- strong typing
+
+Avoid:
+
+- clever code
+- hidden side effects
+- unnecessary abstractions
+
+Readability is more important than reducing the number of lines.
+
+---
+
+# Dependencies
+
+Before adding a dependency, ask:
+
+1. Can the standard library solve this?
+2. Can existing infrastructure solve this?
+3. Is the dependency actively maintained?
+4. Does it improve the project significantly?
+
+Minimize external dependencies.
+
+---
+
+# Backwards Compatibility
+
+Public APIs should remain stable whenever possible.
+
+Breaking changes require:
+
+- documentation updates
+- roadmap updates
+- versioning considerations
 
 ---
 
 # Commits
 
-Each commit should represent one architectural decision.
+Each commit should represent one logical change.
 
-Avoid mixing:
+Good examples:
 
-- refactoring
-- documentation
-- features
-- bug fixes
-
-Example:
-
-GOOD
-
+```
 feat(api): add bearer authentication
 
-BAD
+fix(download): improve retry handling
 
-update api
+docs: update architecture guide
+```
 
----
-
-# Before Finishing Any Task
-
-Run:
-
-uv run ruff check . --fix
-
-uv run ruff format .
-
-uv run mypy
-
-uv run pytest
-
-The repository should remain green.
+Avoid combining unrelated changes.
 
 ---
 
-# Long-Term Goal
+# Decision Making
 
-The framework should allow adding new automation providers without modifying the HTTP API architecture.
+When multiple valid solutions exist, prefer the one that:
 
-Dinantia is only the first implementation.
+- simplifies the architecture;
+- improves reuse;
+- reduces maintenance;
+- minimizes coupling;
+- is easiest to understand six months later.
+
+Optimize for future maintainers.
+
+---
+
+# Long-Term Vision
+
+The framework should evolve into a reusable browser automation platform capable of integrating multiple providers through a consistent HTTP API.
+
+The architecture should remain stable even as providers change.
+
+Infrastructure should grow more slowly than functionality.
+
+New automations should primarily add:
+
+- Page Objects
+- Workflows
+- Portals
+
+without requiring changes to the framework itself.
+
+---
+
+# What Should Rarely Change
+
+The following are considered architectural foundations:
+
+- layered architecture
+- provider isolation
+- reusable infrastructure
+- business-oriented API
+- strong typing
+- documentation-first approach
+
+Changing these principles requires a new ADR.
+
+---
+
+# Final Rule
+
+When in doubt, choose the solution that makes the repository easier to understand for the next developer.
+
+That developer may be another person, or another AI.

@@ -1,392 +1,379 @@
 # Adding a New Automation
 
-> **Audience:** Developers
+> Status: Stable
 >
-> **Status:** Stable
->
-> **Last Updated:** 2026-07-11
->
-> **Applies To:** Entire project
+> Last updated: 2026-07-13
 
 ---
 
-# Purpose
+# Overview
 
-This document describes the recommended process for implementing a new browser automation within the Automation Framework.
+This document describes the recommended process for adding a new browser automation to the framework.
 
-Following these guidelines ensures that new functionality integrates naturally with the existing architecture while remaining maintainable and reusable.
+The objective is to reuse the existing infrastructure whenever possible.
 
----
-
-# Scope
-
-This document covers:
-
-* Analysing a manual workflow.
-* Designing a new automation.
-* Choosing the correct architectural layer.
-* Implementing new functionality.
-* Testing.
-* Documentation.
-
-This document does not describe any specific automation.
+New automations should integrate naturally into the existing architecture without requiring framework modifications.
 
 ---
 
-# Development Process
+# Development Order
 
-Every new automation should follow the same sequence.
+Every automation should be implemented in the following order.
 
-```text
-Understand
-        │
-        ▼
-Inspect
-        │
-        ▼
-Design
-        │
-        ▼
-Implement
-        │
-        ▼
-Test
-        │
-        ▼
-Document
-        │
-        ▼
-Commit
+```
+Domain Model
+
+↓
+
+Page Objects
+
+↓
+
+Workflow
+
+↓
+
+Portal
+
+↓
+
+Application Service
+
+↓
+
+HTTP Router
+
+↓
+
+Tests
+
+↓
+
+Documentation
 ```
 
-Skipping steps generally results in duplicated code or architectural problems.
+Skipping layers generally leads to duplicated code and poor separation of concerns.
 
 ---
 
-# Step 1 — Understand the Manual Process
+# Step 1 — Create Domain Models
 
-Before writing code, perform the complete process manually.
+Create any models required to represent the automation.
 
-The objective is to understand:
+Location:
 
-* every screen involved;
-* every user interaction;
-* required inputs;
-* generated outputs;
-* possible failures;
-* optional branches.
-
-Do not begin implementation until the complete workflow is understood.
-
----
-
-# Step 2 — Inspect the Application
-
-Use browser developer tools and Playwright inspection tools to identify:
-
-* stable selectors;
-* network requests;
-* page transitions;
-* downloads;
-* modal dialogs;
-* asynchronous operations.
-
-Whenever possible, prefer stable semantic selectors over generated identifiers.
-
-Examples include:
-
-* accessible roles;
-* labels;
-* placeholder text;
-* visible text.
-
-Avoid selectors based on dynamic identifiers whenever possible.
-
----
-
-# Step 3 — Identify the Layers
-
-Determine where each responsibility belongs.
-
-## Core
-
-Choose Core when the functionality is reusable by multiple portals.
+```
+automation/models/
+```
 
 Examples:
 
-* download handling;
-* browser lifecycle;
-* logging;
-* common utilities.
+- request filters
+- search criteria
+- result models
+
+Models should use Pydantic whenever validation is required.
 
 ---
+
+# Step 2 — Create Page Objects
+
+Represent each browser page independently.
+
+Location:
+
+```
+automation/portals/<provider>/
+```
+
+Example:
+
+```
+login.py
+
+home.py
+
+tracking.py
+
+detail.py
+```
+
+Responsibilities:
+
+- selectors
+- clicks
+- waits
+- reading page data
+
+Page Objects should never coordinate complete business operations.
+
+---
+
+# Step 3 — Build the Workflow
+
+Create a workflow that coordinates multiple pages.
+
+Location:
+
+```
+automation/workflows/<provider>/
+```
+
+Example:
+
+```
+Login
+
+↓
+
+Tracking
+
+↓
+
+Detail
+
+↓
+
+Export
+```
+
+The workflow owns navigation logic.
+
+---
+
+# Step 4 — Extend the Portal
+
+Expose the new functionality through the public portal API.
+
+Example:
+
+```python
+portal.export_tracking_report(...)
+```
+
+The Portal should hide:
+
+- Page Objects
+- Workflows
+- Playwright
+
+Consumers interact exclusively with the Portal.
+
+---
+
+# Step 5 — Create an Application Service
+
+If the automation should be exposed through HTTP, create a Service.
+
+Responsibilities:
+
+- browser lifecycle
+- temporary downloads
+- portal creation
+- configuration
+- orchestration
+
+Services must not contain Playwright selectors.
+
+---
+
+# Step 6 — Expose an HTTP Endpoint
+
+If the automation should be publicly available:
+
+Create:
+
+- request schema
+- router
+- dependency injection
+- endpoint
+
+The Router should only:
+
+- validate requests
+- invoke the Service
+- return responses
+
+No business logic belongs in the Router.
+
+---
+
+# Step 7 — Add Tests
+
+Testing should cover multiple layers.
 
 ## Models
 
-Create or extend a model when the business operation requires structured input.
-
-Example:
-
-```python
-TrackingFilters(
-    school_year="2025-26",
-)
-```
-
-Avoid long parameter lists.
+Validate input.
 
 ---
 
-## Page Objects
+## Services
 
-A Page Object represents a single application screen.
-
-Typical responsibilities:
-
-* click buttons;
-* fill forms;
-* select values;
-* read information.
-
-A Page Object should never coordinate multiple screens.
+Validate orchestration.
 
 ---
 
-## Workflows
+## API
 
-Create a Workflow when the automation spans multiple pages.
+Validate:
 
-Examples:
+- authentication
+- request validation
+- HTTP responses
+- dependency injection
 
-* authentication;
-* report generation;
-* export processes.
+Replace Services with test doubles.
 
-Workflows coordinate Page Objects.
-
----
-
-## Portals
-
-Expose only business operations.
-
-Example:
-
-```python
-portal.export_tracking_report(filters)
-```
-
-The public API should never expose browser interactions.
+Do not launch Playwright.
 
 ---
 
-# Step 4 — Implement Incrementally
+## End-to-End
 
-Avoid implementing an entire automation at once.
-
-Instead, divide the work into small milestones.
-
-Example:
-
-1. Open the page.
-2. Navigate to the section.
-3. Select filters.
-4. Validate results.
-5. Export data.
-6. Handle failures.
-
-Each milestone should remain executable.
-
----
-
-# Step 5 — Prefer Reusable Infrastructure
-
-Before adding new code, ask:
-
-> Could this be useful for another automation?
-
-If the answer is yes, it probably belongs in Core.
-
-Examples:
-
-* retries;
-* downloads;
-* browser utilities;
-* common Playwright helpers.
-
----
-
-# Step 6 — Handle Failures Explicitly
-
-Browser automations should expect failures.
-
-Examples include:
-
-* timeouts;
-* expired sessions;
-* network delays;
-* temporary server errors;
-* unexpected dialogs.
-
-Whenever possible:
-
-* retry predictable failures;
-* raise meaningful exceptions;
-* log useful diagnostic information.
-
----
-
-# Step 7 — Validate the Result
-
-Execute the complete quality pipeline.
-
-```bash
-uv run ruff check . --fix
-uv run ruff format .
-uv run ruff check .
-uv run mypy automation examples
-uv run pytest
-```
-
-Then execute the relevant example manually.
-
-Both automated and manual validation are required.
+Validate the complete browser automation against the real platform.
 
 ---
 
 # Step 8 — Update Documentation
 
-Every automation should be documented.
+Documentation should always evolve together with the code.
 
-At minimum:
+At minimum update:
 
-* update the README if public capabilities changed;
-* update architecture if responsibilities changed;
-* create or update automation-specific documentation when appropriate.
+- project-status.md
+- roadmap.md (if applicable)
+- provider documentation
+- API documentation
 
-Documentation is part of the implementation.
+If the architecture changes:
+
+- update architecture.md
+- create a new ADR
 
 ---
 
-# Step 9 — Commit
+# Directory Layout
 
-Commits should represent a single logical change.
+A typical implementation adds files similar to:
 
-Prefer several focused commits over a single large commit.
+```
+automation/
 
-Examples:
+models/
+    attendance.py
 
-```text
-feat(dinantia): navigate to tracking
+portals/provider/
+    attendance.py
 
-feat(dinantia): export tracking report
+workflows/provider/
+    attendance_export.py
 
-refactor(core): extract download manager
+api/
+    schemas.py
+    services.py
+    routes/
 
-docs: document tracking workflow
+tests/
+    api/
 ```
 
----
-
-# Choosing the Correct Layer
-
-The following questions help determine where new code belongs.
-
-| Question                             | Layer       |
-| ------------------------------------ | ----------- |
-| Is it reusable by multiple portals?  | Core        |
-| Is it structured business data?      | Models      |
-| Does it interact with one screen?    | Page Object |
-| Does it coordinate multiple screens? | Workflow    |
-| Is it part of the public API?        | Portal      |
-
-If a responsibility seems to belong to multiple layers, reconsider the design.
+Reuse existing infrastructure whenever possible.
 
 ---
 
-# Common Mistakes
+# Existing Infrastructure
 
-Avoid the following patterns.
+Before creating new components, verify whether the framework already provides:
 
-## Mixing browser logic with business logic
+- BrowserManager
+- DownloadManager
+- logging
+- configuration
+- exception handling
+- authentication
+- concurrency control
+- temporary downloads
 
-Incorrect:
+Duplicating infrastructure should be avoided.
 
-```python
-page.click(...)
-page.wait_for(...)
-page.fill(...)
+---
+
+# Architectural Rules
+
+Every new automation should respect the existing dependency flow.
+
+```
+Router
+
+↓
+
+Service
+
+↓
+
+Portal
+
+↓
+
+Workflow
+
+↓
+
+Page Objects
+
+↓
+
+Core
 ```
 
-inside application code.
+Dependencies must never point upwards.
 
 ---
 
-## Large Page Objects
+# Exception Handling
 
-Page Objects should remain focused on a single screen.
+Raise framework exceptions.
 
-Do not accumulate complete workflows inside them.
+Do not expose implementation-specific exceptions through the public API.
 
----
-
-## Duplicated Infrastructure
-
-If the same browser logic appears in multiple places, extract it into Core.
+Global exception handlers translate framework exceptions into HTTP responses.
 
 ---
 
-## Long Parameter Lists
+# Temporary Files
 
-Prefer:
+Generated files should:
 
-```python
-TrackingFilters(...)
-```
-
-instead of:
-
-```python
-export(
-    school_year,
-    teacher,
-    course,
-    start_date,
-    end_date,
-)
-```
-
----
-
-## Skipping Documentation
-
-Documentation is part of the feature.
-
-A feature is not considered complete until its documentation has been updated.
+- use request-scoped temporary directories;
+- be removed automatically after the HTTP response;
+- never remain permanently on disk.
 
 ---
 
 # Checklist
 
-Before merging a new automation:
+Before considering a new automation complete:
 
-* Manual workflow understood.
-* Stable selectors identified.
-* Responsibilities assigned to the correct layer.
-* Models created where appropriate.
-* Workflow implemented.
-* Public API updated.
-* Quality pipeline passes.
-* Manual execution verified.
-* Documentation updated.
-* Commit created.
+- Domain models implemented.
+- Page Objects implemented.
+- Workflow implemented.
+- Portal updated.
+- Service created.
+- Router created (if required).
+- Tests passing.
+- Documentation updated.
+- Ruff passes.
+- MyPy passes.
+- Pytest passes.
+- End-to-end validation completed.
 
 ---
 
-# Related Documents
+# Related Documentation
 
-* README.md
-* architecture.md
-* development-guide.md
-* testing-and-debugging.md
-* documentation-style-guide.md
+- architecture.md
+- api-design.md
+- development-guide.md
+- testing-and-debugging.md
+- decisions/

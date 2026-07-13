@@ -1,245 +1,436 @@
 # Authentication and Sessions
 
-> **Audience:** Developers
+> Status: Stable
 >
-> **Status:** Stable
->
-> **Last Updated:** 2026-07-11
->
-> **Applies To:** Browser Authentication
+> Last updated: 2026-07-13
 
 ---
 
-# Purpose
+# Overview
 
-This document describes how browser authentication is implemented within the Automation Framework.
+Automation Framework uses two completely independent authentication mechanisms.
 
-It explains the session persistence strategy, the authentication workflow and the rationale behind the architectural decisions adopted by the project.
+They serve different purposes and should never be confused.
 
----
+```
+HTTP Client
 
-# Scope
+↓
 
-This document covers:
+Bearer Authentication
 
-* Browser authentication.
-* Session persistence.
-* Session validation.
-* Login fallback.
-* Session lifecycle.
-* Security considerations.
+↓
 
-This document does not describe browser navigation or portal-specific workflows.
+Automation Framework
 
----
+↓
 
-# Authentication Philosophy
+Playwright
 
-The framework is designed to minimize the number of authentication requests sent to the target application.
+↓
 
-Instead of performing a complete login during every execution, browser sessions are persisted and reused whenever possible.
-
-This approach provides three important advantages:
-
-* Faster execution.
-* Reduced authentication traffic.
-* Lower probability of triggering anti-automation mechanisms.
-
-Authentication should therefore be considered an exceptional operation rather than the default execution path.
-
----
-
-# Session Lifecycle
-
-The authentication process follows a simple decision flow.
-
-```text
-Start
-   │
-   ▼
-Load storage state
-   │
-   ▼
-Session available?
-   │
- ┌─┴──────────────┐
- │                │
- ▼                ▼
-Yes              No
- │                │
- ▼                ▼
-Validate       Perform login
- │                │
- ├─────Valid──────┤
- │                │
- ▼                ▼
-Continue      Save new session
-                 │
-                 ▼
-             Continue
+Dinantia Authentication
 ```
 
-The framework always attempts to reuse an existing authenticated session before considering a new login.
+External clients authenticate against the API.
+
+The browser authenticates independently against Dinantia.
 
 ---
 
-# Storage State
+# Authentication Layers
 
-Authenticated browser sessions are persisted using Playwright's **storage state** feature.
+## API Authentication
 
-The storage state contains:
+The HTTP API is protected using a static Bearer token.
 
-* authentication cookies;
-* local storage;
-* session storage (when supported).
+Clients must send:
 
-This information is sufficient to restore an authenticated browser context without interacting with the login page.
+```
+Authorization: Bearer <API_TOKEN>
+```
+
+The expected token is configured through:
+
+```
+AUTOMATION_API_TOKEN
+```
+
+This authentication occurs before:
+
+- request validation
+- browser startup
+- dependency execution
+- Playwright initialization
+
+Invalid requests never start a browser.
 
 ---
 
-# Storage Location
+## Dinantia Authentication
 
-The default session file is stored under:
+Dinantia authentication is completely independent from the HTTP API.
 
-```text
+The framework authenticates using:
+
+```
+Username
+
+↓
+
+Password
+
+↓
+
+Persistent Browser Session
+```
+
+Configuration:
+
+```
+AUTOMATION_DINANTIA_USERNAME
+
+AUTOMATION_DINANTIA_PASSWORD
+```
+
+These credentials are never exposed to API clients.
+
+---
+
+# Session Persistence
+
+Successful authentication generates a persistent Playwright storage state.
+
+Default location:
+
+```
 .playwright/auth/dinantia.json
 ```
 
-The location is configurable through project settings.
+The storage state contains:
 
-The session file should be considered sensitive information.
+- cookies
+- local storage
+- session storage
 
----
-
-# Session Validation
-
-Loading a storage state does not guarantee that the session is still valid.
-
-After restoring the browser context, the framework performs an explicit validation step.
-
-The validation process verifies that the authenticated interface is accessible.
-
-If validation succeeds, execution continues normally.
-
-If validation fails, the framework automatically falls back to a complete login.
+Passwords are never stored.
 
 ---
 
-# Login Fallback
+# Browser Startup
 
-Whenever the stored session is missing, invalid or expired, the framework performs a normal browser authentication.
+Every automation request follows this sequence.
 
-The authentication workflow:
+```
+Receive HTTP request
 
-1. Opens the public portal.
-2. Navigates to the login page.
-3. Completes the login form.
-4. Waits for successful authentication.
-5. Saves the new storage state.
-6. Continues using the newly authenticated session.
+↓
 
-The rest of the application remains unaware of this process.
+Validate Bearer token
+
+↓
+
+Acquire automation lock
+
+↓
+
+Start BrowserManager
+
+↓
+
+Load storage state
+
+↓
+
+Reuse existing session
+
+↓
+
+Execute automation
+```
+
+Whenever possible, the login page is skipped.
 
 ---
 
-# Session Refresh
+# Automatic Login
 
-Sessions are refreshed automatically.
+If the stored browser session is invalid:
 
-Whenever a login is successfully completed, the existing storage state is replaced with the new authenticated session.
+```
+Load storage state
 
-No manual maintenance is required under normal circumstances.
+↓
+
+Session expired
+
+↓
+
+Open login page
+
+↓
+
+Authenticate
+
+↓
+
+Save new storage state
+
+↓
+
+Continue automation
+```
+
+The process is completely transparent to the API client.
+
+---
+
+# Storage State Lifecycle
+
+```
+First login
+
+↓
+
+Save storage state
+
+↓
+
+Subsequent requests
+
+↓
+
+Reuse session
+
+↓
+
+Session expires
+
+↓
+
+Authenticate again
+
+↓
+
+Replace storage state
+```
+
+Only one storage state is maintained for the current Dinantia account.
+
+---
+
+# Browser Lifetime
+
+Browser instances are intentionally short-lived.
+
+Each HTTP request:
+
+- creates a browser
+- executes the automation
+- closes the browser
+
+Only the authentication state is persistent.
+
+This approach minimizes:
+
+- memory usage
+- browser instability
+- stale browser contexts
 
 ---
 
 # Security Considerations
 
-The storage state should be treated as a credential.
+## API Token
 
-For this reason:
+The Bearer token should:
 
-* never commit it to Git;
-* never publish it;
-* never share it;
-* never expose it through logs;
-* never include it in documentation examples.
+- be randomly generated
+- never be committed to Git
+- never appear in logs
+- only be stored in environment variables
 
-The `.playwright/` directory is excluded from version control.
+Example:
+
+```bash
+openssl rand -hex 32
+```
+
+---
+
+## Dinantia Credentials
+
+Dinantia credentials should only exist in:
+
+```
+.env
+```
+
+They should never be:
+
+- hardcoded
+- logged
+- returned through the API
+
+---
+
+## Storage State
+
+The browser session should be considered sensitive.
+
+Recommended:
+
+- exclude from Git
+- backup securely if needed
+- protect filesystem permissions
+
+Anyone with access to the storage state may be able to reuse the authenticated session.
+
+---
+
+# Error Scenarios
+
+## Missing API Token
+
+Result:
+
+```
+401 Unauthorized
+```
+
+Browser is never started.
+
+---
+
+## Invalid API Token
+
+Result:
+
+```
+401 Unauthorized
+```
+
+Browser is never started.
+
+---
+
+## API Token Not Configured
+
+Result:
+
+```
+503 Service Unavailable
+```
+
+The framework refuses to serve requests.
+
+---
+
+## Invalid Dinantia Credentials
+
+Result:
+
+```
+502 Bad Gateway
+```
+
+The browser attempted to authenticate but the external platform rejected the credentials.
+
+---
+
+## Expired Session
+
+The framework automatically attempts a fresh login.
+
+If authentication succeeds:
+
+- storage state is replaced
+- automation continues normally
+
+No manual intervention is normally required.
+
+---
+
+# Authentication Flow
+
+```
+HTTP Request
+
+↓
+
+Bearer Authentication
+
+↓
+
+Automation Lock
+
+↓
+
+Browser Startup
+
+↓
+
+Load Storage State
+
+↓
+
+Session Valid?
+
+├── Yes
+│
+│   Continue
+│
+└── No
+    │
+    ▼
+Authenticate
+
+↓
+
+Save Storage State
+
+↓
+
+Continue Automation
+```
 
 ---
 
 # Configuration
 
-Authentication credentials are stored in the environment configuration.
+Required variables:
 
-Typical values include:
+```
+AUTOMATION_API_TOKEN
 
-* username;
-* password;
-* storage state path.
+AUTOMATION_DINANTIA_USERNAME
 
-Credentials should never appear inside the source code.
+AUTOMATION_DINANTIA_PASSWORD
+```
 
----
+Optional:
 
-# Browser Context
+```
+AUTOMATION_DINANTIA_STORAGE_STATE_PATH
+```
 
-Every browser context is created using the stored authentication state whenever available.
-
-This guarantees that all pages opened inside the same context share the authenticated session.
-
-The framework never authenticates individual pages.
-
-Authentication belongs to the browser context.
+The default storage location is suitable for most deployments.
 
 ---
 
-# Failure Scenarios
+# Best Practices
 
-Typical authentication failures include:
-
-* expired session;
-* revoked credentials;
-* changed login page;
-* unavailable authentication service;
-* network failures.
-
-The framework attempts automatic recovery whenever possible.
-
-If recovery is not possible, a business-level exception is raised.
+- Generate a strong API token.
+- Protect the storage state file.
+- Never expose credentials through logs.
+- Keep browser sessions persistent.
+- Keep browser instances ephemeral.
+- Separate API authentication from Dinantia authentication.
 
 ---
 
-# Architectural Decisions
+# Related Documentation
 
-The project intentionally separates authentication from business workflows.
-
-Business operations should never contain login logic.
-
-Instead, authentication is handled before the requested operation begins.
-
-This separation simplifies every workflow and centralizes authentication management.
-
----
-
-# Future Evolution
-
-Future improvements may include:
-
-* encrypted storage state;
-* multiple user profiles;
-* automatic session expiration detection;
-* support for additional authentication providers;
-* optional MFA support where technically feasible.
-
-These improvements should not require changes to business workflows.
-
----
-
-# Related Documents
-
-* README.md
-* architecture.md
-* development-guide.md
-* dinantia-tracking.md
-* ADR-0002 (Persistent Browser Sessions)
+- architecture.md
+- api-design.md
+- development-guide.md

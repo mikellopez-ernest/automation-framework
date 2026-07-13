@@ -1,0 +1,163 @@
+# ADR-0006 — Use Static Bearer Authentication
+
+> Status: Accepted
+>
+> Date: 2026-07-13
+
+---
+
+# Context
+
+The Automation Framework exposes browser automations through an HTTP API.
+
+The API requires authentication to prevent unauthorized execution of browser automations and access to external platforms such as Dinantia.
+
+The expected clients are trusted systems under the control of the same organization, including:
+
+- Google Apps Script
+- Internal automation services
+- Administrative tools
+- Scheduled jobs
+
+The API is not intended to be publicly accessible by arbitrary users.
+
+---
+
+# Decision
+
+Protect the API using a static Bearer token.
+
+Every request must include:
+
+```
+Authorization: Bearer <API_TOKEN>
+```
+
+The expected token is configured through:
+
+```
+AUTOMATION_API_TOKEN
+```
+
+Authentication is performed before:
+
+- request validation
+- dependency execution
+- browser startup
+- Playwright initialization
+
+Requests with an invalid or missing token are rejected immediately.
+
+---
+
+# Consequences
+
+Positive:
+
+- Extremely simple implementation.
+- No external identity provider required.
+- Suitable for server-to-server communication.
+- Easy integration from Google Apps Script.
+- Constant-time token comparison prevents timing attacks.
+- Minimal operational overhead.
+
+Negative:
+
+- Single shared credential.
+- No user identity.
+- No fine-grained permissions.
+- Manual token rotation.
+
+These limitations are acceptable for the current deployment model.
+
+---
+
+# Alternatives Considered
+
+## OAuth 2.0
+
+Rejected.
+
+Would require an authorization server and significantly increase operational complexity.
+
+Current clients do not require delegated user authentication.
+
+---
+
+## JWT
+
+Rejected.
+
+JWT provides little value when all requests originate from trusted internal systems.
+
+Token signing and expiration would introduce unnecessary complexity.
+
+---
+
+## Session-based authentication
+
+Rejected.
+
+The API is stateless.
+
+Sessions would complicate horizontal scaling and provide no benefit for machine-to-machine communication.
+
+---
+
+## API Keys in Query Parameters
+
+Rejected.
+
+Credentials should never appear in URLs.
+
+Bearer authentication follows standard HTTP practices.
+
+---
+
+# Security Considerations
+
+The API token:
+
+- must be randomly generated;
+- must never be committed to source control;
+- should only be stored in environment variables;
+- should never appear in logs.
+
+Example:
+
+```bash
+openssl rand -hex 32
+```
+
+---
+
+# Future Evolution
+
+If future requirements include:
+
+- multiple users;
+- delegated authorization;
+- fine-grained permissions;
+- external clients,
+
+the authentication mechanism may evolve toward OAuth 2.0 or another identity provider.
+
+Such a change should not require modifications to the automation framework itself.
+
+Only the HTTP layer should be affected.
+
+---
+
+# Rationale
+
+A static Bearer token provides the simplest solution that satisfies the current security requirements while keeping the API stateless, easy to deploy and straightforward to consume from trusted systems.
+
+The chosen approach minimizes operational complexity without compromising the architecture.
+
+---
+
+# Related Documents
+
+- api-design.md
+- authentication-and-sessions.md
+- architecture.md

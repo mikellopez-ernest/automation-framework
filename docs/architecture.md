@@ -1,231 +1,199 @@
 # Architecture
 
-> **Audience:** Developers
+> Status: Stable
 >
-> **Status:** Stable
->
-> **Last Updated:** 2026-07-11
->
-> **Applies To:** Entire project
+> Last updated: 2026-07-13
 
 ---
 
-# Purpose
+# Overview
 
-This document describes the architectural principles of the Automation Framework.
+Automation Framework follows a layered architecture designed to isolate browser automation from business logic and HTTP transport.
 
-Its objective is to explain how the project is organized, the responsibilities of each layer, and the dependency rules that keep the codebase maintainable as new automations are added.
+Each layer has a single responsibility and communicates only with adjacent layers.
 
-This document intentionally focuses on architecture rather than implementation details.
+This architecture makes it possible to:
 
----
-
-# Scope
-
-This document covers:
-
-* Overall project architecture.
-* Layer responsibilities.
-* Dependency rules.
-* Public API philosophy.
-* Project organization.
-
-This document does **not** describe:
-
-* Individual automations.
-* Playwright selectors.
-* Browser interactions.
-* Deployment.
-* FastAPI implementation.
-
-Those topics are documented separately.
+- add new automation providers without modifying the framework;
+- expose browser automations through multiple interfaces (HTTP, CLI, scheduled jobs, etc.);
+- test each layer independently;
+- minimise maintenance when target platforms evolve.
 
 ---
 
-# Architectural Principles
-
-The project is built around a small set of architectural principles.
-
-## Single Responsibility
-
-Each layer has a single responsibility.
-
-Responsibilities are never shared between layers.
-
-For example:
-
-* Browser management belongs to the Core layer.
-* UI interactions belong to Page Objects.
-* Business processes belong to Workflows.
-* Public APIs belong to Portals.
-
----
-
-## Separation of Concerns
-
-Browser automation should remain isolated from business logic.
-
-The application using the framework should never interact directly with Playwright.
-
-Instead, it should consume high-level operations.
-
-Example:
-
-```python
-report = portal.export_tracking_report(filters)
-```
-
-instead of
-
-```python
-page.click(...)
-page.fill(...)
-page.wait_for(...)
-```
-
----
-
-## Reusable Infrastructure
-
-Infrastructure that could be useful for another portal belongs to the Core layer.
-
-Examples include:
-
-* Browser lifecycle.
-* Download management.
-* Logging.
-* Configuration.
-* Common browser elements.
-
-Infrastructure should never depend on portal-specific code.
-
----
-
-## Explicit Domain Models
-
-Business parameters should be grouped into typed models whenever possible.
-
-Example:
-
-```python
-TrackingFilters(
-    school_year="2025-26",
-)
-```
-
-instead of passing multiple unrelated arguments.
-
-Domain models make workflows easier to extend without breaking public APIs.
-
----
-
-# Architecture Overview
-
-The project follows a layered architecture.
+# Architecture Diagram
 
 ```text
-Applications
-        │
-        ▼
-DinantiaPortal
-        │
-        ▼
-Workflows
-        │
-        ▼
-Page Objects
-        │
-        ▼
-Core Infrastructure
-        │
-        ▼
-Playwright
+                    Client
+                       │
+                       ▼
+                FastAPI Application
+                       │
+                       ▼
+                    Routers
+                       │
+                       ▼
+                 Dependencies
+                       │
+                       ▼
+                   Services
+                       │
+                       ▼
+                    Portals
+                       │
+                       ▼
+                   Workflows
+                       │
+                       ▼
+                  Page Objects
+                       │
+                       ▼
+              Core Infrastructure
+                       │
+                       ▼
+                  Playwright
+                       │
+                       ▼
+               External Platform
 ```
-
-Dependencies always flow downwards.
-
-Lower layers never depend on upper layers.
 
 ---
 
 # Layer Responsibilities
 
-## Applications
+## FastAPI Application
 
-Applications are external consumers of the framework.
+Creates the application and configures:
 
-Examples include:
+- routers
+- exception handlers
+- OpenAPI
+- Swagger UI
 
-* Example scripts.
-* FastAPI.
-* Google Apps Script integrations.
-* Scheduled tasks.
+It contains no business logic.
 
-Applications only interact with Portal classes.
+---
+
+## Routers
+
+Routers expose HTTP endpoints.
+
+Responsibilities:
+
+- request parsing
+- response generation
+- dependency injection
+- HTTP status codes
+
+Routers must never:
+
+- create browsers
+- use Playwright
+- contain business logic
+- contain selectors
+
+---
+
+## Dependencies
+
+Dependencies provide reusable infrastructure.
+
+Examples:
+
+- Settings
+- Authentication
+- Services
+- Automation lock
+
+Dependencies should be stateless whenever possible.
+
+---
+
+## Services
+
+Services orchestrate complete application operations.
+
+Responsibilities include:
+
+- browser lifecycle
+- portal creation
+- temporary download directories
+- configuration
+- application flow
+
+Services do not contain Playwright selectors.
 
 ---
 
 ## Portals
 
-Portals expose the public API of a supported web application.
-
-A portal hides the internal implementation and offers business-oriented operations.
+A Portal exposes a high-level API for a single external platform.
 
 Example:
 
 ```python
-portal.export_tracking_report(filters)
+portal.export_tracking_report(...)
 ```
 
-A Portal should never expose browser interactions.
+Consumers never interact directly with Workflows or Page Objects.
 
 ---
 
 ## Workflows
 
-Workflows coordinate multiple Page Objects to complete a business task.
+A Workflow coordinates multiple Page Objects to perform a business operation.
 
-Typical responsibilities include:
+Example:
 
-* Opening pages.
-* Executing multiple navigation steps.
-* Handling retries.
-* Returning business results.
+```
+Login
 
-A Workflow should not contain reusable browser infrastructure.
+↓
+
+Tracking
+
+↓
+
+Detail
+
+↓
+
+Export
+```
+
+Workflows own navigation logic.
 
 ---
 
 ## Page Objects
 
-A Page Object represents a single application screen.
+Page Objects represent individual screens.
 
-Its responsibility is to expose operations available within that screen.
+Responsibilities:
 
-Examples:
+- selectors
+- clicks
+- form filling
+- waiting
+- reading page data
 
-* Open a section.
-* Fill a form.
-* Click a button.
-* Read displayed information.
-
-Page Objects should never orchestrate complete business processes involving multiple screens.
+Playwright interactions belong exclusively here.
 
 ---
 
 ## Core Infrastructure
 
-The Core layer contains reusable components shared by every automation.
+Reusable infrastructure shared by every automation.
 
-Current examples include:
+Examples:
 
-* BrowserManager
-* DownloadManager
-* Elements
-* Configuration
-* Logging
+- BrowserManager
+- DownloadManager
+- logging
+- configuration
+- exception hierarchy
 
-The Core layer must remain completely independent from portal implementations.
+Core must remain provider-independent.
 
 ---
 
@@ -233,139 +201,265 @@ The Core layer must remain completely independent from portal implementations.
 
 Playwright is treated as an implementation detail.
 
-Only the framework interacts directly with Playwright.
-
-Applications should never depend on Playwright APIs.
+The rest of the framework communicates only through abstractions.
 
 ---
 
-# Dependency Rules
+# Dependency Direction
 
-The dependency graph is intentionally simple.
+Dependencies always point downwards.
 
 ```text
-Applications
+Router
     ↓
+Service
+    ↓
+Portal
+    ↓
+Workflow
+    ↓
+Page Object
+    ↓
+Core
+```
 
-Portals
-    ↓
+Lower layers never import upper layers.
 
-Workflows
-    ↓
+Examples:
+
+✅ Allowed
+
+```
+Service → Portal
+```
+
+```
+Workflow → Page Object
+```
+
+```
+Page Object → Core
+```
+
+❌ Forbidden
+
+```
+Page Object → Service
+```
+
+```
+Portal → Router
+```
+
+```
+Core → Workflow
+```
+
+---
+
+# Browser Lifecycle
+
+The browser lifecycle is owned by the Service layer.
+
+```text
+Request
+
+↓
+
+Create BrowserManager
+
+↓
+
+Execute automation
+
+↓
+
+Close browser
+
+↓
+
+Return response
+```
+
+Routers never interact with BrowserManager.
+
+---
+
+# Authentication
+
+Two independent authentication mechanisms exist.
+
+## API Authentication
+
+Used by external clients.
+
+```
+Bearer Token
+```
+
+Configured through:
+
+```
+AUTOMATION_API_TOKEN
+```
+
+---
+
+## Dinantia Authentication
+
+Used internally by browser automation.
+
+```
+Username
+
+↓
+
+Password
+
+↓
+
+Persistent storage state
+```
+
+These mechanisms must remain independent.
+
+---
+
+# Concurrency
+
+Automation execution is serialized.
+
+Only one browser automation may execute simultaneously within a process.
+
+The Automation Lock is acquired before any browser starts.
+
+```
+Request A
+
+↓
+
+Browser
+
+↓
+
+Finished
+
+↓
+
+Request B
+```
+
+Multiple Uvicorn workers are intentionally not supported.
+
+---
+
+# Temporary Downloads
+
+Every request receives its own temporary directory.
+
+Example:
+
+```
+automation-tracking-a82fd19/
+
+    tracking-report.xlsx
+```
+
+Lifecycle:
+
+```
+Create directory
+
+↓
+
+Download report
+
+↓
+
+HTTP response
+
+↓
+
+Automatic cleanup
+```
+
+No permanent reports are stored.
+
+---
+
+# Exception Handling
+
+Framework exceptions propagate through the Service layer.
+
+FastAPI translates them into HTTP responses using global exception handlers.
+
+Routers should not catch framework exceptions.
+
+---
+
+# Configuration
+
+Configuration is centralized in `Settings`.
+
+Framework components receive configuration through dependency injection.
+
+Credentials, paths and runtime options must never be hardcoded.
+
+---
+
+# Design Rules
+
+Every new feature should follow the same architecture.
+
+```
+Model
+
+↓
 
 Page Objects
-    ↓
 
-Core
-    ↓
+↓
 
-Playwright
+Workflow
+
+↓
+
+Portal
+
+↓
+
+Service
+
+↓
+
+Router
 ```
 
-Allowed dependencies:
+Infrastructure should be reused whenever possible.
 
-* Applications → Portals
-* Portals → Workflows
-* Workflows → Page Objects
-* Page Objects → Core
-* Core → Playwright
-
-Forbidden dependencies include:
-
-* Core → Portals
-* Core → Workflows
-* Page Objects → Workflows
-* Workflows → Applications
-
-Circular dependencies should never exist.
+New providers should implement only the provider-specific layers.
 
 ---
 
-# Project Structure
+# Architectural Principles
 
-```text
-automation/
-├── config/
-├── core/
-├── models/
-├── portals/
-├── workflows/
-├── api/          (planned)
-├── examples/
-├── tests/
-└── docs/
-```
+The project follows these principles:
 
-Each directory has a clearly defined responsibility.
+- Single Responsibility Principle
+- Separation of Concerns
+- Explicit Dependencies
+- Strong Typing
+- Composition over Inheritance
+- Reusable Infrastructure
 
-When introducing new functionality, it should be placed in the layer that naturally owns that responsibility.
+Every architectural decision should reinforce these principles.
 
 ---
 
-# Public API Philosophy
+# Related Documentation
 
-The framework exposes business operations rather than browser interactions.
-
-Example:
-
-```python
-portal.export_tracking_report(filters)
-```
-
-The caller should never need to know:
-
-* which pages are visited;
-* how authentication works;
-* how downloads are managed;
-* how retries are implemented;
-* which selectors are used.
-
-Implementation details remain internal to the framework.
-
----
-
-# Error Handling
-
-Errors should be reported at the highest meaningful abstraction level.
-
-Example:
-
-Instead of exposing a Playwright timeout, the framework should raise an exception that describes the failed business operation.
-
-```
-Dinantia tracking report could not be exported.
-```
-
-rather than
-
-```
-Locator.wait_for() timed out.
-```
-
-Implementation-specific exceptions should remain internal whenever possible.
-
----
-
-# Future Evolution
-
-The architecture has been designed to support future additions without major structural changes.
-
-Expected future components include:
-
-* FastAPI service layer.
-* Additional Dinantia tracking automations.
-* Richer domain models.
-* Improved automated testing.
-* Additional reusable Core infrastructure.
-
-These additions should integrate naturally without modifying the existing layering principles.
-
----
-
-# Related Documents
-
-* README.md
-* development-guide.md
-* authentication-and-sessions.md
-* adding-a-new-automation.md
-* ADR-0003 (Page / Workflow / Portal layering)
+- `api-design.md`
+- `development-guide.md`
+- `authentication-and-sessions.md`
+- `adding-a-new-automation.md`
+- `decisions/`

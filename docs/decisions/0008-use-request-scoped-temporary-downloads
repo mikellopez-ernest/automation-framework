@@ -1,0 +1,194 @@
+# ADR-0008 — Use Request-Scoped Temporary Downloads
+
+> Status: Accepted
+>
+> Date: 2026-07-13
+
+---
+
+# Context
+
+Several browser automations generate downloadable files.
+
+Examples include:
+
+- Excel reports
+- PDF documents
+- CSV exports
+
+Originally, downloads were stored inside a permanent download directory.
+
+This approach introduced several problems:
+
+- downloaded files accumulated indefinitely;
+- filename collisions became possible;
+- periodic cleanup tasks were required;
+- failed automations could leave orphaned files on disk.
+
+The HTTP API should not permanently retain generated reports.
+
+---
+
+# Decision
+
+Each automation request creates its own temporary download directory.
+
+Example:
+
+```
+automation-tracking-f83ab9e2/
+
+    tracking-report.xlsx
+```
+
+The temporary directory exists only for the lifetime of the HTTP request.
+
+After the response has been completely transmitted, the directory is removed automatically.
+
+---
+
+# Architecture
+
+```
+HTTP Request
+
+↓
+
+Create Temporary Directory
+
+↓
+
+Browser Automation
+
+↓
+
+Download Report
+
+↓
+
+FileResponse
+
+↓
+
+BackgroundTask
+
+↓
+
+Delete Temporary Directory
+```
+
+Cleanup occurs after the response has finished sending the file to the client.
+
+---
+
+# Consequences
+
+Positive:
+
+- No permanent report storage.
+- No filename collisions.
+- No scheduled cleanup jobs.
+- Every request is fully isolated.
+- Simpler operational maintenance.
+- Reduced filesystem clutter.
+
+Negative:
+
+- Every request creates a temporary directory.
+- Files cannot be reused after the response has completed.
+
+These trade-offs are acceptable because reports are generated on demand.
+
+---
+
+# Alternatives Considered
+
+## Permanent Download Directory
+
+Rejected.
+
+Would require:
+
+- filename management;
+- cleanup policies;
+- scheduled maintenance.
+
+The operational overhead is unnecessary.
+
+---
+
+## Shared Temporary Directory
+
+Rejected.
+
+Concurrent requests could still collide on filenames.
+
+Per-request isolation provides stronger guarantees.
+
+---
+
+## In-Memory Downloads
+
+Rejected.
+
+Generated reports may become relatively large.
+
+Streaming directly from disk is simpler and more memory-efficient.
+
+---
+
+## Delete Files Before Returning
+
+Rejected.
+
+`FileResponse` streams files asynchronously.
+
+Deleting the file before the response completes would make the download fail.
+
+---
+
+# Implementation
+
+Each request:
+
+1. Creates a unique temporary directory.
+2. Configures BrowserManager to download into that directory.
+3. Returns the generated file using `FileResponse`.
+4. Registers a `BackgroundTask`.
+5. Deletes the temporary directory after the response has finished.
+
+The cleanup process is transparent to API consumers.
+
+---
+
+# Future Evolution
+
+If future automations require long-term storage, generated files should be uploaded to a dedicated storage service before being returned to the client.
+
+Examples:
+
+- Amazon S3
+- MinIO
+- Google Cloud Storage
+- Azure Blob Storage
+
+Temporary local storage should remain the default behaviour.
+
+---
+
+# Rationale
+
+Generated reports are transient artifacts.
+
+Treating them as request-scoped resources eliminates operational maintenance while providing strong isolation between requests.
+
+The chosen solution integrates naturally with FastAPI's `BackgroundTask` mechanism and keeps the filesystem clean without requiring additional infrastructure.
+
+---
+
+# Related Documents
+
+- architecture.md
+- api-design.md
+- development-guide.md
+- testing-and-debugging.md

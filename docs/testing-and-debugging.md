@@ -1,352 +1,442 @@
 # Testing and Debugging
 
-> **Audience:** Developers
+> Status: Stable
 >
-> **Status:** Stable
->
-> **Last Updated:** 2026-07-11
->
-> **Applies To:** Entire project
+> Last updated: 2026-07-13
 
 ---
 
-# Purpose
+# Overview
 
-This document describes the testing strategy and debugging techniques used throughout the Automation Framework.
+Automation Framework uses multiple levels of testing to validate the framework, API and browser automations.
 
-Rather than providing a generic Playwright guide, it documents the real issues encountered during development and the techniques used to diagnose and resolve them.
+Testing should progressively increase confidence before deploying changes into production.
 
----
+The recommended validation order is:
 
-# Scope
+```
+Unit Tests
 
-This document covers:
+↓
 
-* Development validation.
-* Browser debugging.
-* Playwright troubleshooting.
-* Common failure scenarios.
-* Diagnostic techniques.
+API Tests
 
-This document does not describe individual business workflows.
+↓
 
----
+Manual Validation
 
-# Testing Philosophy
+↓
 
-Testing is performed at multiple levels.
-
-No single technique is considered sufficient.
-
-Every significant change should be validated through:
-
-* Static analysis.
-* Type checking.
-* Automated tests.
-* Manual execution.
-
-Together these provide confidence that the framework behaves correctly.
+End-to-End Validation
+```
 
 ---
 
-# Quality Pipeline
+# Test Pyramid
 
-Before every commit execute:
+The project follows a layered testing strategy.
+
+## Unit Tests
+
+Purpose:
+
+Validate isolated functionality.
+
+Examples:
+
+- Settings
+- Domain models
+- Validation
+- Utility functions
+
+These tests should never launch a browser.
+
+---
+
+## API Tests
+
+Purpose:
+
+Validate the HTTP layer.
+
+Examples:
+
+- Request validation
+- Authentication
+- Dependency injection
+- HTTP responses
+- File downloads
+
+API tests should replace application services using FastAPI dependency overrides.
+
+Playwright should never run during API tests.
+
+---
+
+## End-to-End Tests
+
+Purpose:
+
+Validate the complete browser automation.
+
+Example flow:
+
+```
+HTTP Request
+
+↓
+
+Authentication
+
+↓
+
+Browser
+
+↓
+
+Dinantia
+
+↓
+
+Excel
+
+↓
+
+HTTP Response
+
+↓
+
+Cleanup
+```
+
+These tests execute the real automation.
+
+---
+
+# Running the Test Suite
+
+Run every test.
 
 ```bash
-uv run ruff check . --fix
-uv run ruff format .
-uv run ruff check .
-uv run mypy automation examples
 uv run pytest
 ```
 
-Whenever browser behaviour changes, execute the relevant example manually.
+---
+
+Run a single file.
+
+```bash
+uv run pytest tests/api/test_dinantia_tracking_routes.py
+```
 
 ---
 
-# Manual Verification
+Run a single test.
 
-Browser automations interact with external systems.
-
-For this reason, automated tests cannot verify every scenario.
-
-Important workflows should always be executed manually after implementation.
-
-Manual verification confirms:
-
-* navigation;
-* browser interaction;
-* downloads;
-* authentication;
-* application behaviour.
+```bash
+uv run pytest -k export_tracking_report
+```
 
 ---
 
-# Debug Configuration
+# Static Analysis
 
-During development the browser should normally run with:
+Before committing:
 
-* headless disabled;
-* slow motion disabled unless required;
-* detailed logging enabled.
+```bash
+uv run ruff check . --fix
 
-Watching the browser frequently reveals problems that logs alone cannot explain.
+uv run ruff format .
+
+uv run ruff check .
+
+uv run mypy
+```
+
+The repository should remain completely green.
+
+---
+
+# Manual API Testing
+
+Start the API.
+
+```bash
+uv run uvicorn automation.api.app:app --reload
+```
+
+Swagger:
+
+```
+http://127.0.0.1:8000/docs
+```
+
+OpenAPI:
+
+```
+http://127.0.0.1:8000/openapi.json
+```
+
+---
+
+# Testing with curl
+
+Example request:
+
+```bash
+curl \
+  -X POST \
+  http://127.0.0.1:8000/api/v1/dinantia/tracking/export \
+  -H "Authorization: Bearer <API_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"school_year":"2025-26"}' \
+  --output tracking-report.xlsx
+```
+
+---
+
+# Validating the Download
+
+Confirm the file exists.
+
+```bash
+ls -lh tracking-report.xlsx
+```
+
+Confirm it is an Excel workbook.
+
+```bash
+file tracking-report.xlsx
+```
+
+Validate the ZIP structure.
+
+```bash
+unzip -t tracking-report.xlsx
+```
+
+Expected output:
+
+```
+No errors detected in compressed data
+```
+
+---
+
+# Authentication Tests
+
+Missing token:
+
+Expected:
+
+```
+401 Unauthorized
+```
+
+---
+
+Invalid token:
+
+Expected:
+
+```
+401 Unauthorized
+```
+
+---
+
+Missing configuration:
+
+Expected:
+
+```
+503 Service Unavailable
+```
+
+---
+
+# Request Validation
+
+Invalid request body:
+
+```json
+{
+    "school_year": ""
+}
+```
+
+Expected:
+
+```
+422 Unprocessable Entity
+```
+
+Validation should occur before any browser is launched.
+
+---
+
+# Concurrency
+
+Only one automation may execute at a time.
+
+When another request is already running:
+
+Expected:
+
+```
+409 Conflict
+```
+
+The browser should not start.
+
+---
+
+# Temporary Downloads
+
+Every request creates a temporary directory.
+
+Example:
+
+```
+automation-tracking-8fd29ab3/
+```
+
+The directory should disappear automatically after the response has finished.
+
+Verify:
+
+```bash
+find /tmp -maxdepth 1 -type d -name "automation-tracking-*"
+```
+
+No directories should remain.
+
+---
+
+# Browser Sessions
+
+Persistent browser state is stored separately.
+
+Example:
+
+```
+.playwright/auth/dinantia.json
+```
+
+Downloaded reports should never be stored permanently.
 
 ---
 
 # Logging
 
-Logs should describe business operations rather than browser operations.
+Useful information includes:
 
-Good examples:
+- browser startup
+- authentication
+- page navigation
+- retries
+- downloads
+- browser shutdown
 
-```text
-Opening tracking page
+Unexpected exceptions should include stack traces.
 
-Selecting school year
-
-Export attempt 2 of 3
-
-Download completed
-```
-
-Avoid logging individual clicks or selectors unless debugging.
-
-Logs should explain what the framework is trying to accomplish.
+HTTP clients should never receive internal implementation details.
 
 ---
 
-# Common Failure Scenarios
+# Common Problems
 
-The following issues have been observed during development.
-
----
-
-## Session Expired
-
-Symptoms:
-
-* Redirect to login.
-* Missing authenticated interface.
-
-Resolution:
-
-The framework automatically performs a new login and refreshes the stored session.
-
----
-
-## Dynamic Identifiers
-
-Observed behaviour:
-
-Many elements receive dynamically generated identifiers.
-
-Example:
-
-```text
-uid-9-password
-uid-14-password
-uid-...
-```
-
-Recommendation:
-
-Never use generated identifiers as selectors.
-
-Prefer semantic selectors.
-
----
-
-## Multiple Matching Elements
-
-Observed behaviour:
-
-Some pages contain multiple elements matching the same placeholder or visible text.
-
-Example:
-
-Two Email fields may exist simultaneously.
-
-Recommendation:
-
-Reduce the search scope before interacting with elements.
-
----
-
-## AJAX Intermediate Responses
-
-Observed behaviour:
-
-A single user action may trigger multiple requests.
-
-Example:
-
-```text
-POST /web/attitude/get_chart_data
-```
-
-The first response may contain no records while later responses contain the complete dataset.
-
-Recommendation:
-
-Validate response contents instead of assuming the first response is final.
-
----
-
-## Export Failure
-
-Observed behaviour:
-
-Export occasionally opens a temporary browser tab displaying an HTTP 500 error.
-
-Recommendation:
-
-Close the temporary page.
-
-Retry the export.
-
-Do not immediately consider this an automation failure.
-
----
-
-## Browser Timeouts
-
-A timeout does not necessarily indicate a slow application.
-
-Possible causes include:
-
-* incorrect selector;
-* hidden element;
-* unexpected navigation;
-* incorrect frame;
-* application state.
-
-Always investigate the real cause before increasing timeout values.
-
----
-
-# Debugging Strategy
-
-When a new issue appears, investigate in the following order.
-
-## 1. Observe
-
-Watch the browser.
-
-Determine exactly where execution stops.
-
----
-
-## 2. Inspect
-
-Use browser developer tools.
+## Browser does not start
 
 Verify:
 
-* element existence;
-* visibility;
-* enabled state;
-* page structure.
+- Playwright installation
+- browser binaries
+- permissions
 
 ---
 
-## 3. Verify Selectors
+## Authentication fails
 
-Confirm that selectors still match the application.
+Verify:
 
-Prefer semantic selectors.
+- username
+- password
+- storage state
 
-Avoid generated identifiers.
-
----
-
-## 4. Verify Network Activity
-
-Check whether browser requests complete successfully.
-
-Unexpected network behaviour often explains browser failures.
+Delete the stored browser session if necessary and authenticate again.
 
 ---
 
-## 5. Improve Logging
+## Download timeout
 
-If the cause remains unclear, improve logging before changing implementation.
+Possible causes:
 
-Logs should describe application state rather than implementation details.
+- Dinantia temporary failure
+- popup window
+- network latency
 
----
-
-# Playwright Inspector
-
-Whenever necessary, Playwright's inspection tools may be used to:
-
-* inspect selectors;
-* experiment with locators;
-* validate browser interactions.
-
-Inspection tools should be considered part of the normal development workflow.
+DownloadManager automatically retries failed downloads.
 
 ---
 
-# Browser Console
+## HTTP 401
 
-When diagnosing unexpected behaviour, inspect:
+Verify:
 
-* JavaScript errors;
-* failed network requests;
-* browser warnings.
+```
+Authorization: Bearer <token>
+```
 
-Application-side errors frequently explain automation failures.
+Confirm:
 
----
-
-# Retry Policy
-
-Retries should only be implemented when failures are known to be temporary.
-
-Examples:
-
-* intermittent server errors;
-* transient network failures;
-* delayed downloads.
-
-Retries should never hide programming errors.
+```
+AUTOMATION_API_TOKEN
+```
 
 ---
 
-# When Not to Retry
+## HTTP 409
 
-Do not retry:
+Another automation is already running.
 
-* invalid selectors;
-* authentication failures caused by invalid credentials;
-* missing application features;
-* programming errors.
-
-These require investigation rather than repetition.
+Wait until the previous request finishes.
 
 ---
 
-# Principles
+## HTTP 503
 
-When debugging:
+Possible causes:
 
-Prefer observation over assumptions.
+- browser unavailable
+- download failure
+- report generation failure
+- API token not configured
 
-Prefer application events over fixed delays.
-
-Prefer semantic selectors over fragile selectors.
-
-Prefer improving the implementation over increasing timeouts.
+Review the application logs.
 
 ---
 
-# Related Documents
+# Successful Validation Checklist
 
-* README.md
-* architecture.md
-* development-guide.md
-* adding-a-new-automation.md
-* dinantia-tracking.md
-* authentication-and-sessions.md
+Before releasing changes:
+
+- Ruff passes.
+- MyPy passes.
+- Pytest passes.
+- Swagger loads correctly.
+- OpenAPI specification is generated.
+- Authentication works.
+- Browser automation succeeds.
+- Excel download is valid.
+- Temporary directories are removed.
+- No unexpected warnings appear.
+
+---
+
+# Related Documentation
+
+- development-guide.md
+- api-design.md
+- authentication-and-sessions.md
+- project-status.md
