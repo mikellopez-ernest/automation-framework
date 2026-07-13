@@ -2,6 +2,7 @@ FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 WORKDIR /app
 
@@ -14,8 +15,8 @@ COPY pyproject.toml uv.lock ./
 # Install locked production dependencies without installing the project yet
 RUN uv sync --frozen --no-dev --no-install-project
 
-# Install Chromium and its required system dependencies
-RUN uv run --no-sync playwright install --with-deps chromium
+# Install Firefox and its required system dependencies
+RUN uv run --no-sync playwright install --with-deps firefox
 
 # Copy the application source
 COPY . .
@@ -23,10 +24,10 @@ COPY . .
 # Install the project itself
 RUN uv sync --frozen --no-dev
 
-# Prepare persistent runtime storage and run as a non-root user
 RUN useradd --create-home automation \
     && mkdir -p /app/.playwright/auth \
-    && chown -R automation:automation /app
+    && chown -R automation:automation /app \
+    && chown -R automation:automation /ms-playwright
 
 USER automation
 
