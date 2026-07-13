@@ -5,16 +5,21 @@
 
 # Overview
 
-Automation Framework is deployed as two Docker containers:
+Automation Framework is deployed as an application stack connected to a shared reverse proxy infrastructure.
+
+The production architecture is:
 
 ```text
 Internet
     │
     ▼
-Caddy
+Shared Caddy reverse proxy
     │
     ▼
-FastAPI
+External Docker network: proxy
+    │
+    ▼
+Automation Framework
     │
     ▼
 Playwright
@@ -23,47 +28,80 @@ Playwright
 External Platform
 ```
 
-Caddy is the only public entry point.
+Caddy is deployed independently from the application.
 
-It provides:
+It acts as the global HTTP and HTTPS entry point for the server and may route traffic to multiple applications, including Automation Framework and future services such as WordPress or other internal APIs.
 
-* HTTPS termination
-* automatic TLS certificate management
-* HTTP to HTTPS redirection
-* reverse proxy access to the FastAPI application
+Automation Framework is deployed through its own Docker Compose stack.
 
-The FastAPI container is not exposed directly to the host or the Internet.
+The application stack:
+
+* does not publish ports to the host;
+* does not manage TLS certificates;
+* does not own the reverse proxy;
+* connects to the external Docker network named `proxy`.
+
+The shared Caddy stack:
+
+* publishes ports 80 and 443;
+* manages TLS certificates;
+* redirects HTTP traffic to HTTPS;
+* routes requests to application containers through the `proxy` network.
 
 # Deployment Architecture
 
-The production deployment contains two services.
+The production deployment is intentionally split into two independent stacks.
 
-## Automation service
+## Automation Framework stack
 
-The `automation` service runs:
+The application stack is defined by:
 
-* FastAPI
-* Uvicorn
-* Playwright
-* Chromium
-* Automation Framework
+```text
+docker-compose.yml
+```
 
-Only one Uvicorn worker is used.
+It contains only the `automation` service.
 
-This is required because automation execution is serialized using an in-process Automation Lock.
+The service runs:
 
-Multiple Uvicorn workers are intentionally not supported in the current architecture.
+* FastAPI;
+* Uvicorn;
+* Playwright;
+* Chromium;
+* Automation Framework.
 
-## Caddy service
+It connects to the external Docker network:
 
-The `caddy` service:
+```text
+proxy
+```
 
-* listens on ports 80 and 443
-* obtains and renews TLS certificates
-* redirects HTTP requests to HTTPS
-* proxies requests to `automation:8000`
+The application is not exposed directly to the host or the Internet.
 
-Caddy communicates with the API through the internal Docker Compose network.
+## Shared Caddy stack
+
+The shared reverse proxy stack is defined by:
+
+```text
+infrastructure/caddy/docker-compose.yml
+```
+
+Its configuration is stored in:
+
+```text
+infrastructure/caddy/Caddyfile
+```
+
+Caddy is responsible for:
+
+* public HTTP and HTTPS access;
+* automatic TLS certificate management;
+* HTTP-to-HTTPS redirects;
+* routing traffic to application containers;
+* serving future applications hosted on the same server.
+
+Both stacks can be started, stopped, updated and maintained independently.
+
 
 # Reverse Proxy Design
 

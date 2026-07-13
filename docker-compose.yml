@@ -13,25 +13,12 @@ services:
       AUTOMATION_DINANTIA_STORAGE_STATE_PATH: /app/.playwright/auth/dinantia.json
     volumes:
       - automation_auth:/app/.playwright/auth
-
-  caddy:
-    image: caddy:2
-    container_name: automation-caddy
-    restart: unless-stopped
-    depends_on:
-      - automation
-    environment:
-      AUTOMATION_DOMAIN: ${AUTOMATION_DOMAIN}
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
+    networks:
+      - proxy
 
 volumes:
   automation_auth:
-  caddy_data:
-  caddy_config:
+
+networks:
+  proxy:
+    external: true

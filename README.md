@@ -168,29 +168,25 @@ For additional details see:
 # Project Structure
 
 ```text
-automation/
-├── api/
-├── config/
-├── core/
-├── models/
-├── portals/
-├── workflows/
-├── examples/
+```text
+.
+├── automation/
+├── docs/
+├── infrastructure/
+│   └── caddy/
 ├── tests/
-└── docs/
+├── Dockerfile
+├── docker-compose.yml
+└── pyproject.toml
 ```
 
-| Directory | Purpose |
-|-----------|---------|
-| **api** | FastAPI application |
-| **config** | Configuration and settings |
-| **core** | Shared infrastructure |
-| **models** | Typed domain models |
-| **portals** | Public automation APIs |
-| **workflows** | Business workflows |
-| **examples** | Executable examples |
-| **tests** | Test suite |
-| **docs** | Project documentation |
+| Directory          | Purpose                          |
+| ------------------ | -------------------------------- |
+| **automation**     | Framework source code            |
+| **docs**           | Project documentation            |
+| **infrastructure** | Shared deployment infrastructure |
+| **tests**          | Test suite                       |
+
 
 ---
 
@@ -261,19 +257,32 @@ http://127.0.0.1:8000/openapi.json
 
 # Production Deployment
 
-The framework includes a complete production deployment based on:
+Production deployments are split into two independent Docker Compose stacks.
 
-* Docker
-* Docker Compose
-* Caddy
+The application stack contains only Automation Framework.
+
+Shared infrastructure components, such as the reverse proxy, are located under:
+
+```text
+infrastructure/
+```
+
+The current infrastructure includes:
+
+* Caddy reverse proxy
 * Automatic HTTPS
-* Persistent Playwright authentication state
+* TLS certificate management
 
-For production environments, refer to:
+Applications communicate through a shared external Docker network named:
 
+```text
+proxy
 ```
-docs/deployment.md
-```
+
+See:
+
+* `docs/deployment.md`
+
 
 The deployment guide includes:
 
@@ -379,6 +388,7 @@ The complete documentation is located under `docs/`.
 | `architecture.md` | System architecture |
 | `development-guide.md` | Development workflow |
 | `deployment.md` | Production deployment guide |
+| `infrastructure/README.md` | Shared deployment infrastructure |
 
 ## Framework
 

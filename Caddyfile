@@ -1,3 +1,0 @@
-{$AUTOMATION_DOMAIN} {
-    reverse_proxy automation:8000
-}
